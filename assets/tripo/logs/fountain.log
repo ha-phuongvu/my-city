@@ -1,0 +1,36 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: a8c0c6b2-237e-46e2-8cea-1c7bd7b9db14
+Project: 07de54c8-18d6-4d5e-8a57-a0a97d1df3a6
+Studio:  https://studio.tripo3d.ai/workspace/generate/07de54c8-18d6-4d5e-8a57-a0a97d1df3a6
+Waiting for generation to complete...
+Status: running (2%)
+Status: running (4%)
+Status: running (7%)
+Status: running (9%)
+Status: running (12%)
+Status: running (15%)
+Status: running (17%)
+Status: running (20%)
+Status: running (22%)
+Status: running (25%)
+Status: running (28%)
+Status: running (30%)
+Status: running (33%)
+Status: running (35%)
+Status: running (38%)
+Status: running (40%)
+Status: running (43%)
+Status: running (46%)
+Status: running (48%)
+Status: running (51%)
+Status: running (53%)
+Status: running (56%)
+Status: running (58%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (14%)
+Status: running (25%)
+OK: Downloaded: fountain.glb (2.1 MB)

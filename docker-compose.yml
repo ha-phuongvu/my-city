@@ -1,0 +1,65 @@
+# Local services for development (SRS 5.2): `pnpm services:up`, then `pnpm services:down` to stop.
+# Data lives in named volumes, so it survives restarts; `docker compose down -v` wipes it.
+name: my-city
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: mycity
+      POSTGRES_PASSWORD: mycity
+      POSTGRES_DB: mycity
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mycity -d mycity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.56
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: local-dev-master-key-change-me
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch:/meili_data
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis:/data
+
+  # S3-compatible storage standing in for Cloudflare R2. The SRS names MinIO, but MinIO no longer
+  # publishes Docker images, so this uses RustFS (same S3 API). Console: http://localhost:9001
+  storage:
+    image: rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_ACCESS_KEY: mycity
+      RUSTFS_SECRET_KEY: mycity-local-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - storage:/data
+
+  # Catches every email the app sends. Inbox: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.33
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  postgres:
+  meilisearch:
+  redis:
+  storage:

@@ -1,0 +1,9 @@
+{
+  "Metadata": {
+    "title": "My City",
+    "description": "Thế giới những thành phố sở thích theo phong cách Ghibli. Bắt đầu với Story City: viết, đọc và lưu truyện, không quảng cáo và tìm kiếm hiệu quả."
+  },
+  "World": {
+    "canvasLabel": "Bản đồ thế giới 3D: đài phun nước ở Quảng trường Thế giới giữa đồng cỏ. Kéo để xoay quanh; các phím mũi tên để xoay và nghiêng."
+  }
+}

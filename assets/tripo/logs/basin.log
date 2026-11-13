@@ -1,0 +1,44 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: c5df53de-64de-4627-9a99-71d8f5d249d5
+Project: b1cd6b83-a5a6-40bf-8e77-710065928695
+Studio:  https://studio.tripo3d.ai/workspace/generate/b1cd6b83-a5a6-40bf-8e77-710065928695
+Waiting for generation to complete...
+Status: running (3%)
+Status: running (7%)
+Status: running (11%)
+Status: running (15%)
+Status: running (19%)
+Status: running (23%)
+Status: running (27%)
+Status: running (32%)
+Status: running (36%)
+Status: running (40%)
+Status: running (44%)
+Status: running (48%)
+Status: running (52%)
+Status: running (56%)
+Status: running (60%)
+Status: running (65%)
+Status: running (69%)
+Status: running (73%)
+Status: running (77%)
+Status: running (81%)
+Status: running (85%)
+Status: running (89%)
+Status: running (94%)
+Status: running (98%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (3%)
+Status: running (5%)
+OK: Downloaded: basin.glb (1.7 MB)

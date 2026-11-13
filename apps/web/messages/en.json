@@ -1,0 +1,9 @@
+{
+  "Metadata": {
+    "title": "My City",
+    "description": "A Ghibli-style world of hobby cities. Start in Story City: write, read and save stories, with no ads and search that works."
+  },
+  "World": {
+    "canvasLabel": "3D world map: the World Plaza fountain on the meadow. Drag to turn it round; the arrow keys turn and tilt it."
+  }
+}

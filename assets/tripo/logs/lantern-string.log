@@ -1,0 +1,27 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: 62688bf4-db1b-468b-89cf-22ca575e001f
+Project: 4c8b8560-ffce-40e0-8196-24587d6579b2
+Studio:  https://studio.tripo3d.ai/workspace/generate/4c8b8560-ffce-40e0-8196-24587d6579b2
+Waiting for generation to complete...
+Status: queued (0%)
+Status: running (3%)
+Status: running (6%)
+Status: running (9%)
+Status: running (12%)
+Status: running (15%)
+Status: running (17%)
+Status: running (20%)
+Status: running (23%)
+Status: running (26%)
+Status: running (28%)
+Status: running (31%)
+Status: running (34%)
+Status: running (37%)
+Status: running (40%)
+OK: Generation complete
+Exporting and downloading...
+Status: running (12%)
+Status: running (32%)
+OK: Downloaded: lantern-string.glb (1.7 MB)

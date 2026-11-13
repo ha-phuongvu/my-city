@@ -1,0 +1,35 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: f425d037-c91b-47ae-856d-5d5aeb654e1f
+Project: 81d6a673-579f-438a-bf9a-247e9b1da717
+Studio:  https://studio.tripo3d.ai/workspace/generate/81d6a673-579f-438a-bf9a-247e9b1da717
+Waiting for generation to complete...
+Status: queued (0%)
+Status: running (4%)
+Status: running (7%)
+Status: running (9%)
+Status: running (12%)
+Status: running (15%)
+Status: running (17%)
+Status: running (20%)
+Status: running (23%)
+Status: running (26%)
+Status: running (28%)
+Status: running (31%)
+Status: running (34%)
+Status: running (37%)
+Status: running (39%)
+Status: running (42%)
+Status: running (45%)
+Status: running (48%)
+Status: running (50%)
+Status: running (53%)
+Status: running (56%)
+Status: running (59%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (3%)
+Status: running (5%)
+OK: Downloaded: river.glb (1.6 MB)

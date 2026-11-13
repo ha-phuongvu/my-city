@@ -1,0 +1,44 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: 69937c68-289a-4a7a-b07b-09b4041f707c
+Project: 1de2e53e-9767-465e-a828-b40c429dd417
+Studio:  https://studio.tripo3d.ai/workspace/generate/1de2e53e-9767-465e-a828-b40c429dd417
+Waiting for generation to complete...
+Status: queued (0%)
+Status: running (4%)
+Status: running (7%)
+Status: running (9%)
+Status: running (12%)
+Status: running (15%)
+Status: running (17%)
+Status: running (20%)
+Status: running (22%)
+Status: running (25%)
+Status: running (28%)
+Status: running (30%)
+Status: running (33%)
+Status: running (36%)
+Status: running (38%)
+Status: running (41%)
+Status: running (44%)
+Status: running (46%)
+Status: running (49%)
+Status: running (52%)
+Status: running (54%)
+Status: running (57%)
+Status: running (60%)
+Status: running (62%)
+Status: running (65%)
+Status: running (68%)
+Status: running (70%)
+Status: running (73%)
+Status: running (76%)
+Status: running (78%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (4%)
+Status: running (6%)
+Status: running (8%)
+OK: Downloaded: library.glb (2.9 MB)

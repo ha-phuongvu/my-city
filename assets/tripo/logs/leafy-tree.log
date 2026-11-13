@@ -1,0 +1,39 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: c78c9da4-0942-4a8a-bfa6-f9971171ccf6
+Project: b6438d58-d58a-489c-87e7-d50a8ba91a98
+Studio:  https://studio.tripo3d.ai/workspace/generate/b6438d58-d58a-489c-87e7-d50a8ba91a98
+Waiting for generation to complete...
+Status: running (3%)
+Status: running (10%)
+Status: running (18%)
+Status: running (26%)
+Status: running (34%)
+Status: running (41%)
+Status: running (49%)
+Status: running (57%)
+Status: running (64%)
+Status: running (72%)
+Status: running (80%)
+Status: running (88%)
+Status: running (95%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (99%)
+Status: running (99%)
+OK: Downloaded: leafy-tree.glb (1.9 MB)

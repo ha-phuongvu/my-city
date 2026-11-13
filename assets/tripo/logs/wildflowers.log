@@ -1,0 +1,33 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: 332b5a09-c74b-4fe5-8727-7b3b87bfd86f
+Project: f18a5a0f-527e-4645-af63-80b008c698ec
+Studio:  https://studio.tripo3d.ai/workspace/generate/f18a5a0f-527e-4645-af63-80b008c698ec
+Waiting for generation to complete...
+Status: running (3%)
+Status: running (8%)
+Status: running (13%)
+Status: running (18%)
+Status: running (23%)
+Status: running (28%)
+Status: running (33%)
+Status: running (38%)
+Status: running (42%)
+Status: running (47%)
+Status: running (52%)
+Status: running (57%)
+Status: running (62%)
+Status: running (67%)
+Status: running (72%)
+Status: running (77%)
+Status: running (82%)
+Status: running (87%)
+Status: running (92%)
+Status: running (97%)
+Status: running (99%)
+OK: Generation complete
+Exporting and downloading...
+Status: running (99%)
+Status: running (99%)
+OK: Downloaded: wildflowers.glb (1.7 MB)

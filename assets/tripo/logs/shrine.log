@@ -1,0 +1,46 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: 84f6691f-af83-4fec-8ec5-9b81d860ab7f
+Project: ecd2ad2f-c520-4fe4-81f8-0e6fa223b33a
+Studio:  https://studio.tripo3d.ai/workspace/generate/ecd2ad2f-c520-4fe4-81f8-0e6fa223b33a
+Waiting for generation to complete...
+Status: queued (0%)
+Status: running (3%)
+Status: running (5%)
+Status: running (7%)
+Status: running (10%)
+Status: running (12%)
+Status: running (14%)
+Status: running (16%)
+Status: running (18%)
+Status: running (21%)
+Status: running (23%)
+Status: running (25%)
+Status: running (27%)
+Status: running (30%)
+Status: running (32%)
+Status: running (34%)
+Status: running (36%)
+Status: running (39%)
+Status: running (41%)
+Status: running (43%)
+Status: running (45%)
+Status: running (48%)
+Status: running (50%)
+Status: running (52%)
+Status: running (54%)
+Status: running (57%)
+Status: running (59%)
+Status: running (61%)
+Status: running (63%)
+Status: running (65%)
+Status: running (68%)
+Status: running (70%)
+Status: running (72%)
+Status: running (74%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (5%)
+OK: Downloaded: shrine.glb (1.7 MB)

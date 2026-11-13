@@ -1,0 +1,30 @@
+{
+  "name": "my-city",
+  "private": true,
+  "description": "My City: a Ghibli-style 3D hobby world. Story City (Wattpad-style reading and writing) is the first city.",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "pnpm --filter web start",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "pnpm format:check && turbo run lint typecheck test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "services:up": "docker compose up -d",
+    "services:down": "docker compose down",
+    "db:generate": "pnpm --filter @my-city/db generate",
+    "db:migrate": "pnpm --filter @my-city/db migrate",
+    "db:studio": "pnpm --filter @my-city/db studio"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "turbo": "^2.11.10"
+  }
+}

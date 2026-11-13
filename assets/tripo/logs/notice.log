@@ -1,0 +1,41 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: 961e83ab-dca1-4b65-8e1a-d1d430d9caf5
+Project: 595dbbbf-534b-4ee1-b464-a186da68b360
+Studio:  https://studio.tripo3d.ai/workspace/generate/595dbbbf-534b-4ee1-b464-a186da68b360
+Waiting for generation to complete...
+Status: queued (0%)
+Status: running (7%)
+Status: running (12%)
+Status: running (17%)
+Status: running (22%)
+Status: running (26%)
+Status: running (31%)
+Status: running (36%)
+Status: running (41%)
+Status: running (46%)
+Status: running (51%)
+Status: running (55%)
+Status: running (60%)
+Status: running (65%)
+Status: running (70%)
+Status: running (75%)
+Status: running (80%)
+Status: running (84%)
+Status: running (89%)
+Status: running (94%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: queued (0%)
+Status: queued (0%)
+Status: queued (0%)
+Status: queued (0%)
+Status: queued (0%)
+Status: running (99%)
+Status: running (99%)
+OK: Downloaded: notice.glb (1.7 MB)

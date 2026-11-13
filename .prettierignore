@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+documents/
+**/.next/
+**/public/draco/
+packages/db/drizzle/
+apps/web/AGENTS.md

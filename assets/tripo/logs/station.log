@@ -1,0 +1,40 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: d4ce7019-cb6b-4654-b419-a131a027afe1
+Project: 5f04392a-d339-4968-ab3f-155b601ce8d5
+Studio:  https://studio.tripo3d.ai/workspace/generate/5f04392a-d339-4968-ab3f-155b601ce8d5
+Waiting for generation to complete...
+Status: running (1%)
+Status: running (5%)
+Status: running (9%)
+Status: running (13%)
+Status: running (17%)
+Status: running (21%)
+Status: running (25%)
+Status: running (29%)
+Status: running (33%)
+Status: running (37%)
+Status: running (41%)
+Status: running (45%)
+Status: running (49%)
+Status: running (53%)
+Status: running (57%)
+Status: running (61%)
+Status: running (66%)
+Status: running (70%)
+Status: running (74%)
+Status: running (78%)
+Status: running (82%)
+Status: running (86%)
+Status: running (90%)
+Status: running (94%)
+Status: running (98%)
+Status: running (99%)
+OK: Generation complete
+Exporting and downloading...
+Status: running (2%)
+Status: running (6%)
+Status: running (11%)
+Status: running (16%)
+OK: Downloaded: station.glb (1.7 MB)

@@ -1,0 +1,37 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: 93a03494-eb77-4709-a75f-aa715951bfed
+Project: ca9b60d3-99cf-46e7-8dad-805ffc42bfb5
+Studio:  https://studio.tripo3d.ai/workspace/generate/ca9b60d3-99cf-46e7-8dad-805ffc42bfb5
+Waiting for generation to complete...
+Status: running (1%)
+Status: running (6%)
+Status: running (11%)
+Status: running (16%)
+Status: running (21%)
+Status: running (26%)
+Status: running (31%)
+Status: running (36%)
+Status: running (41%)
+Status: running (46%)
+Status: running (51%)
+Status: running (56%)
+Status: running (61%)
+Status: running (66%)
+Status: running (71%)
+Status: running (76%)
+Status: running (81%)
+Status: running (86%)
+Status: running (91%)
+Status: running (96%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+Status: running (99%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (3%)
+Status: running (5%)
+OK: Downloaded: flower-bush.glb (2.4 MB)

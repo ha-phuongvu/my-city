@@ -1,0 +1,26 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Packages allowed to run install scripts (pnpm blocks them by default)
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+  esbuild: true
+  "@parcel/watcher": false
+  "@swc/core": false
+
+# pnpm holds back releases younger than a day; these Next.js 16.4.6 packages were let through when the app was created
+minimumReleaseAgeExclude:
+  - "@next/env@16.4.6"
+  - "@next/eslint-plugin-next@16.4.6"
+  - "@next/swc-darwin-arm64@16.4.6"
+  - "@next/swc-darwin-x64@16.4.6"
+  - "@next/swc-linux-arm64-gnu@16.4.6"
+  - "@next/swc-linux-arm64-musl@16.4.6"
+  - "@next/swc-linux-x64-gnu@16.4.6"
+  - "@next/swc-linux-x64-musl@16.4.6"
+  - "@next/swc-win32-arm64-msvc@16.4.6"
+  - "@next/swc-win32-x64-msvc@16.4.6"
+  - eslint-config-next@16.4.6
+  - next@16.4.6

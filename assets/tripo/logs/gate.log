@@ -1,0 +1,47 @@
+Uploading 1 image(s)...
+Running content check...
+Submitting generation task...
+OK: Task created: bb143dd0-6552-4f32-adac-36f8a2e92a18
+Project: ae150b0e-207a-4845-a93e-a176f0982ce2
+Studio:  https://studio.tripo3d.ai/workspace/generate/ae150b0e-207a-4845-a93e-a176f0982ce2
+Waiting for generation to complete...
+Status: running (1%)
+Status: running (3%)
+Status: running (6%)
+Status: running (8%)
+Status: running (10%)
+Status: running (13%)
+Status: running (15%)
+Status: running (17%)
+Status: running (20%)
+Status: running (22%)
+Status: running (24%)
+Status: running (27%)
+Status: running (29%)
+Status: running (31%)
+Status: running (34%)
+Status: running (36%)
+Status: running (38%)
+Status: running (41%)
+Status: running (43%)
+Status: running (45%)
+Status: running (48%)
+Status: running (50%)
+Status: running (52%)
+Status: running (55%)
+Status: running (57%)
+Status: running (59%)
+Status: running (62%)
+Status: running (64%)
+Status: running (66%)
+Status: running (69%)
+Status: running (71%)
+Status: running (73%)
+Status: running (76%)
+OK: Generation complete
+Exporting and downloading...
+Status: queued (0%)
+Status: running (16%)
+Status: running (25%)
+Status: running (35%)
+OK: Downloaded: gate.glb (2.2 MB)
