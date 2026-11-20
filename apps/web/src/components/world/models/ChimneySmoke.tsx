@@ -3,8 +3,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, type Sprite, SpriteMaterial, SRGBColorSpace } from "three";
-import { type MotionProps, useCycle } from "../motion/cycle";
-import { ACROSS, DOWNWIND, FADE, KEYS, LIFE, LIFE_STEP, PUFF, PUFFS, START } from "./ChimneySmoke.constants";
+import { type MotionProps, useCycle } from "../utils/cycle";
+import { ACROSS, DOWNWIND, FADE, KEYS, LIFE, LIFE_STEP, PUFF, PUFFS, START } from "../constants/ChimneySmoke.constants";
 
 // Chimney smoke, as on the prototype's Story City map (smokeHtml): soft white puffs leave the chimney
 // small and thin, rise, sway, billow wider and drift off downwind as they fade, one after another,

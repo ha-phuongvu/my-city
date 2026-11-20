@@ -1,10 +1,10 @@
 "use client";
 
 import type { ThreeElements } from "@react-three/fiber";
-import type { MotionProps } from "../motion/cycle";
-import { useParts } from "../motion/useParts";
+import type { MotionProps } from "../utils/cycle";
+import { useParts } from "../utils/useParts";
 import { ChimneySmoke } from "./ChimneySmoke";
-import { CHIMNEY } from "./Library.constants";
+import { CHIMNEY } from "../constants/Library.constants";
 
 // The Grand Library with steam puffing from the boiler chimney behind it (mLibrary's steam(), in the
 // prototype's units)

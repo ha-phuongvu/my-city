@@ -1,10 +1,10 @@
 "use client";
 
 import type { ThreeElements } from "@react-three/fiber";
-import type { MotionProps } from "../motion/cycle";
-import { useParts } from "../motion/useParts";
+import type { MotionProps } from "../utils/cycle";
+import { useParts } from "../utils/useParts";
 import { ChimneySmoke } from "./ChimneySmoke";
-import { CHIMNEYS } from "./Studio.constants";
+import { CHIMNEYS } from "../constants/Studio.constants";
 
 // The Writer's Studio with smoke rising from both its brick chimneys (mStudio's steam(), in the
 // prototype's units)

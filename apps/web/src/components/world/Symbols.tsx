@@ -2,20 +2,21 @@
 
 import { type ComponentType, useMemo } from "react";
 import { CanvasTexture } from "three";
-import { CITIES, type City } from "./layout";
+import { CITIES, type City } from "./constants/layout.constants";
 import { Model, preloadModel, useModelSize } from "./Model";
 import { Book } from "./models/Book";
 import { FilmReel } from "./models/FilmReel";
 import { Kamishibai } from "./models/Kamishibai";
 import { Kendama } from "./models/Kendama";
 import { Piano } from "./models/Piano";
-import { useCityHit, useCityPoke } from "./motion/cityPointing";
-import type { MotionProps } from "./motion/cycle";
-import { CARD_YAW, LAWN_REACH, LAWN_Y, SHADOW, SHADOW_Y } from "./Symbols.constants";
+import { useCityHit, useInCity } from "./utils/cityPointing";
+import type { MotionProps } from "./utils/cycle";
+import { CARD_YAW, LAWN_REACH, LAWN_Y, SHADOW, SHADOW_Y } from "./constants/Symbols.constants";
 
 // Each symbol's own motion, as on the prototype's map: the book turns a page, the piano plays its
 // tune, the kendama swings its ball, the reel turns and the kamishibai shuts and opens its doors.
-// The symbols hang still until their city is pointed at, then play once.
+// The symbols hang still until their city is pointed at, then play over and over until the pointer
+// leaves: each finishes the round it's on and rests, except the reel, which stops where it is.
 const MOTION: Record<string, ComponentType<MotionProps>> = {
   book: Book,
   piano: Piano,
@@ -61,7 +62,7 @@ function FloatingSymbol({
   const src = `/models/${model}.glb`;
   const modelHeight = useModelSize(src).y;
   const Moving = MOTION[model];
-  const poke = useCityPoke(city.id);
+  const pointing = useInCity(city.id);
   const hit = useCityHit(city.id);
 
   return (
@@ -79,7 +80,7 @@ function FloatingSymbol({
             // the models' origin is the middle of their base: lower it so they turn about their middle, as Model's `center` does
             <group rotation-y={CARD_YAW[model]}>
               <group position-y={-modelHeight / 2}>
-                <Moving poke={poke} />
+                <Moving pointing={pointing} />
               </group>
             </group>
           )}
@@ -115,7 +116,7 @@ function FloatingSymbol({
   );
 }
 
-/** Each city's giant symbol, floating over its lawn and turned toward the fountain, playing when the city is pointed at */
+/** Each city's giant symbol, floating over its lawn and turned toward the fountain, playing while the city is pointed at */
 export function Symbols() {
   const still = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
   const shadowTexture = useMemo(() => blot(), []);

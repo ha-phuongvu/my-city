@@ -3,9 +3,9 @@
 import { type ThreeElements, useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type { Group } from "three";
-import { type MotionProps, useCycle } from "../motion/cycle";
-import { useParts } from "../motion/useParts";
-import { TRIP, WAIT } from "./Train.constants";
+import { type MotionProps, useCycle } from "../utils/cycle";
+import { useParts } from "../utils/useParts";
+import { TRIP, WAIT } from "../constants/Train.constants";
 
 // Story City's visitor train only runs one way, as in the film (the prototype's runTrains): it
 // crosses the city along the sea railway in 17 s, waits 5 s out of sight past the far edge, then

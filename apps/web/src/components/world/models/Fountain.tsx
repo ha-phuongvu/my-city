@@ -15,9 +15,9 @@ import {
   SRGBColorSpace,
   TorusGeometry,
 } from "three";
-import { type MotionProps, useCycle } from "../motion/cycle";
-import { useParts } from "../motion/useParts";
-import { useRoomLight, withRoomLight } from "../roomLight";
+import { type MotionProps, useCycle } from "../utils/cycle";
+import { useParts } from "../utils/useParts";
+import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import {
   AROUND,
   BANDS,
@@ -36,7 +36,7 @@ import {
   STRAND,
   STRANDS,
   STREAK,
-} from "./Fountain.constants";
+} from "../constants/Fountain.constants";
 
 // The World Plaza fountain with its water moving, as on the prototype's map (fallsHtml and fxHtml)
 // and in its 3D guide. The water falling from the top bowl is an open cone, a little wider at its

@@ -3,11 +3,11 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BoxGeometry, type Mesh, Matrix4, MeshStandardMaterial, type Object3D, Vector3 } from "three";
-import { ease, type MotionProps, useCycle } from "../motion/cycle";
-import { moveInPrototype, turnAbout } from "../motion/prototype";
-import { useParts } from "../motion/useParts";
-import { useRoomLight, withRoomLight } from "../roomLight";
-import { BLOOM, HEADS } from "./Wildflowers.constants";
+import { ease, type MotionProps, useCycle } from "../utils/cycle";
+import { moveInPrototype, turnAbout } from "../utils/prototype";
+import { useParts } from "../utils/useParts";
+import { useRoomLight, withRoomLight } from "../utils/roomLight";
+import { BLOOM, HEADS } from "../constants/Wildflowers.constants";
 
 // Story City's wildflowers open and close, each at its own pace, as on the prototype's Story City
 // map (its `bloom` keyframes): a flower's head grows out of its bud with a little twist, overshoots

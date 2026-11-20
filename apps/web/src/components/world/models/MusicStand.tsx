@@ -3,13 +3,13 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { type Group, type Matrix4, type Mesh, type MeshStandardMaterial, PlaneGeometry } from "three";
-import { useCityHit, useCityPoke } from "../motion/cityPointing";
-import type { MotionProps } from "../motion/cycle";
-import { type Canvas, drawWords, faceCanvas, faceMaterial, faceSheet } from "../motion/face";
-import { FONTS } from "../motion/face.constants";
-import { usePlayOnPoke, useStill } from "../motion/pointing";
-import { useParts } from "../motion/useParts";
-import { useRoomLight } from "../roomLight";
+import { useCityHit, useInCity } from "../utils/cityPointing";
+import type { MotionProps } from "../utils/cycle";
+import { type Canvas, drawWords, faceCanvas, faceMaterial, faceSheet } from "../utils/face";
+import { FONTS } from "../constants/face.constants";
+import { usePlayWhilePointed, useStill } from "../utils/pointing";
+import { useParts } from "../utils/useParts";
+import { useRoomLight } from "../utils/roomLight";
 import {
   ACROSS,
   F,
@@ -33,15 +33,16 @@ import {
   UP,
   W,
   WIDTH,
-} from "./MusicStand.constants";
+} from "../constants/MusicStand.constants";
 
 // Music City's name sign: a wire music stand holding an open booklet of sheet music. On its pages,
 // as the prototype's page lays them, the city's name is the piece's title over a staff with a
 // treble clef and a little tune, with the status at the foot. Pointing at Music City (the stand is
-// part of it) plays the tune once: the notes hop one after another (0.42 s each, 0.16 s apart) and
-// the music flies out of the page, a ribbon of staff lines sweeping up out of the sheet in a wave,
-// drawing itself out, notes popping onto it as it reaches them, then drifting up and fading; and
-// pointing again does nothing until it's done (3 s).
+// part of it) plays the tune: the notes hop one after another (0.42 s each, 0.16 s apart) and the
+// music flies out of the page, a ribbon of staff lines sweeping up out of the sheet in a wave,
+// drawing itself out, notes popping onto it as it reaches them, then drifting up and fading (3 s).
+// It plays again and again for as long as the pointer stays in the city, and finishes the one it's
+// on when it leaves.
 
 /** How far the pages bow toward us X across from the spine */
 const bow = (X: number) => 0.1 * Math.sin((Math.PI * Math.abs(X)) / (PAGE.width * 1.1)) + 0.01;
@@ -287,14 +288,14 @@ type Props = MotionProps & {
   sub: string;
 };
 
-/** Music City's music stand, playing its little tune when the city is pointed at */
+/** Music City's music stand, playing its little tune while the city is pointed at */
 export function MusicStand({ place, name, sub, ...motion }: Props) {
   const { model, toModel } = useParts("/models/music-stand.glb");
   const light = useRoomLight();
   const still = useStill();
   const hit = useCityHit("music");
-  const city = useCityPoke("music");
-  const play = usePlayOnPoke(PLAY, { ...motion, poke: (motion.poke ?? 0) + city });
+  const inCity = useInCity("music");
+  const play = usePlayWhilePointed(PLAY, { ...motion, pointing: motion.pointing || inCity });
   const fromModel = useMemo(() => toModel.clone().invert(), [toModel]);
   const face = useMemo(() => faceCanvas(WIDTH, HEIGHT, 360), []);
   const sheet = useMemo(() => faceSheet(onPage, 24, 1), []);

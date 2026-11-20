@@ -4,9 +4,9 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
 import { Matrix4, type Object3D } from "three";
 import { preloadModel } from "./Model";
-import { useParts } from "./motion/useParts";
-import { leanAt, leanMatrix } from "./motion/wind";
-import { SRC } from "./WorldProps.constants";
+import { useParts } from "./utils/useParts";
+import { leanAt, leanMatrix } from "./utils/wind";
+import { SRC } from "./constants/WorldProps.constants";
 
 // The standing things on the prototype's world map that have no model card of their own, exactly
 // where its buildWorld() puts them: each city's low brick wall and gateposts, the plot's heap of

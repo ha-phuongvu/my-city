@@ -3,8 +3,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BufferAttribute, BufferGeometry, DoubleSide, MeshBasicMaterial, Vector3 } from "three";
-import { useStill } from "./motion/pointing";
-import { ALONG, DRIFT, LIFE, MOST, POINTS, THICK, UP, WIND } from "./WindLines.constants";
+import { useStill } from "./utils/pointing";
+import { ALONG, DRIFT, LIFE, MOST, POINTS, THICK, UP, WIND } from "./constants/WindLines.constants";
 
 // The wind lines in the air, as on the prototype's map (its windLines, after bruno-simon.com): every
 // 0.3 to 2 seconds a thin white line, a gentle wave about 8 long, appears somewhere in view lying along

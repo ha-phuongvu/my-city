@@ -10,15 +10,16 @@ import {
   MeshDepthMaterial,
   RGBADepthPacking,
 } from "three";
-import { TREE_GROWTH } from "./Foliage.constants";
-import { buildFoliage, fallingLeafTones } from "./foliageMesh";
+import { TREE_GROWTH } from "./constants/Foliage.constants";
+import { buildFoliage, fallingLeafTones } from "./utils/foliageMesh";
 import { AppleTrees } from "./models/AppleTrees";
 import { type Crown, FallingLeaves } from "./models/FallingLeaves";
-import { WIND_GLSL, windNoise } from "./motion/wind";
-import { type Apple, type AppleTreePlacement, type TreePlacement, TREES, type Trees } from "./treeLayout";
+import { WIND_GLSL, windNoise } from "./utils/wind";
+import { OUTSKIRTS_TREES } from "./utils/outskirts";
+import { type Apple, type AppleTreePlacement, type TreePlacement, TREES, type Trees } from "./constants/treeLayout.constants";
 
 // The plants lean in the wind plant by plant, each from its own foot with the gust where it stands
-// (motion/wind.ts): the mesh's "sway" attribute carries every corner's foot and how far its plant
+// (utils/wind.ts): the mesh's "sway" attribute carries every corner's foot and how far its plant
 // sways, and the vertex shader slides it over by its height. Its shadow leans with it. As on the
 // prototype, the plants stand still for anyone who has asked for less motion.
 
@@ -43,12 +44,14 @@ function growApples(t: AppleTreePlacement): AppleTreePlacement {
   };
 }
 
+// the map's own plants and the outskirts' woods (outskirts.ts)
 const GROWN: Trees = {
   ...TREES,
   leafy: TREES.leafy.map(grow),
-  round: TREES.round.map(grow),
-  apple: TREES.apple.map(growApples),
-  pine: TREES.pine.map(grow),
+  round: [...TREES.round, ...OUTSKIRTS_TREES.round].map(grow),
+  apple: [...TREES.apple, ...OUTSKIRTS_TREES.apple].map(growApples),
+  pine: [...TREES.pine, ...OUTSKIRTS_TREES.pine].map(grow),
+  bush: [...TREES.bush, ...OUTSKIRTS_TREES.bush],
 };
 
 /** Makes a material lean its corners in the wind, at the time in `wind.value` (kept in its userData) */

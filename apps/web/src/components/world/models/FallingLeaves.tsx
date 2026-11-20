@@ -12,8 +12,8 @@ import {
   SphereGeometry,
   Vector3,
 } from "three";
-import { rng } from "../foliageMesh";
-import { ease } from "../motion/cycle";
+import { rng } from "../utils/foliageMesh";
+import { ease } from "../utils/cycle";
 import {
   FACING,
   FALL_AT,
@@ -26,7 +26,7 @@ import {
   SPOTS,
   TOWARD_LEAF,
   VIEW,
-} from "./FallingLeaves.constants";
+} from "../constants/FallingLeaves.constants";
 
 // Pointing at a round tree shakes its leaves loose, as on the prototype's map (shedLeaves): three at
 // first, then one or two every half second for as long as the pointer stays. Each leaf comes loose

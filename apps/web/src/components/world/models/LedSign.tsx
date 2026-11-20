@@ -3,12 +3,12 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { type Matrix4 } from "three";
-import { useCityHit, useInCity } from "../motion/cityPointing";
-import type { MotionProps } from "../motion/cycle";
-import { type Canvas, drawWords, faceCanvas, faceMaterial, flatSheet, type Words, wordsWidth } from "../motion/face";
-import { FONTS } from "../motion/face.constants";
-import { useStill } from "../motion/pointing";
-import { useParts } from "../motion/useParts";
+import { useCityHit, useInCity } from "../utils/cityPointing";
+import type { MotionProps } from "../utils/cycle";
+import { type Canvas, drawWords, faceCanvas, faceMaterial, flatSheet, type Words, wordsWidth } from "../utils/face";
+import { FONTS } from "../constants/face.constants";
+import { useStill } from "../utils/pointing";
+import { useParts } from "../utils/useParts";
 import {
   DOT,
   FACE,
@@ -17,6 +17,7 @@ import {
   LIT,
   NAME,
   OUT,
+  PIXELS,
   RUN,
   SCREEN,
   SPOT,
@@ -25,14 +26,16 @@ import {
   SUB_BOTTOM,
   UNLIT,
   WIDTH,
-} from "./LedSign.constants";
+} from "../constants/LedSign.constants";
 
 // Game City's name sign: a black LED board standing on the grass, the name in amber dots and the
 // city's status in small green letters under it. As on the prototype's page, at rest the name stands
 // still in the middle of the board; while the pointer is in Game City it runs left to right across
 // it (led-run: the words twice over on a strip that slides one copy's width every 5 s), and once
-// the pointer leaves it finishes the pass it is on and stands still again. The running dots are the
-// strip's own (its mask moves with it) over the board's fixed grid of faint unlit dots.
+// the pointer leaves it finishes the pass it is on and stands still again. The words are drawn sharp
+// and seen through a grid of round dots, as the page masks them, so a dot half on a letter shows that
+// half; the running dots are the strip's own (its mask moves with it) over the board's fixed grid of
+// faint unlit dots.
 
 type Lit = { image: HTMLCanvasElement; copy: number; k: number };
 
@@ -41,11 +44,11 @@ const nameWords = (name: string): Words => ({ text: name.toUpperCase(), font: FO
 /** The strip of lit dots for the running name: the name and its red dot, twice over */
 function strip(name: string): Lit {
   const words = nameWords(name);
-  const fine = 200;
+  const fine = PIXELS;
   const measure = faceCanvas(1, 1, fine);
   const copy = wordsWidth(measure, words) + SPOT.margin * 2 + SPOT.size;
   measure.texture.dispose();
-  // the strip's words drawn sharp, to see how much of each dot they cover
+  // the strip's words drawn sharp, to be seen through its dots
   const ink = faceCanvas(copy * 2, words.size, fine);
   const pen = ink.context;
   for (const start of [0, copy]) {
@@ -56,63 +59,53 @@ function strip(name: string): Lit {
     pen.arc(spotX * fine, (words.size / 2) * fine, (SPOT.size / 2) * fine, 0, Math.PI * 2);
     pen.fill();
   }
-  return { image: lightUp(ink, copy * 2, words.size, fine), copy, k: 300 };
+  return { image: lightUp(ink), copy, k: fine };
 }
 
 /** The name standing still in the middle of the board, in lit dots on the board's own grid (with no red dot) */
 function standing(name: string): Lit {
   const words = nameWords(name);
-  const fine = 200;
+  const fine = PIXELS;
   const ink = faceCanvas(WIDTH, words.size, fine);
   const wide = wordsWidth(ink, words);
   if (wide > WIDTH * STILL_FILL) words.size *= (WIDTH * STILL_FILL) / wide;
   drawWords(ink, words, WIDTH / 2, NAME.size / 2);
-  return { image: lightUp(ink, WIDTH, NAME.size, fine), copy: WIDTH, k: 300 };
+  return { image: lightUp(ink), copy: WIDTH, k: fine };
 }
 
 /**
- * Words drawn sharp on `ink` (width by height, `fine` pixels a unit), shown through a grid of dots
- * starting at its top left: each dot shows as much of the words as fall in it, in their colour, glowing
+ * Words drawn sharp on `ink`, seen through a grid of dots starting at its top left as the page masks
+ * them: each dot shows the part of the words that falls in it, in their colour, and the dots glow
  */
-function lightUp(ink: Canvas, width: number, height: number, fine: number): HTMLCanvasElement {
-  const k = 300;
-  const pen = ink.context;
-  ink.texture.dispose();
+function lightUp(ink: Canvas): HTMLCanvasElement {
+  const { width, height } = ink.context.canvas;
+  const cell = DOT * ink.k;
+  const lit = document.createElement("canvas");
   const image = document.createElement("canvas");
-  image.width = Math.ceil(width * k);
-  image.height = Math.ceil(height * k);
+  const dot = document.createElement("canvas");
+  lit.width = image.width = width;
+  lit.height = image.height = height;
+  dot.width = dot.height = Math.ceil(cell);
+  const mask = lit.getContext("2d");
   const paint = image.getContext("2d");
-  if (!paint) return image;
-  // each dot shows as much of the words as fall in it, in their colour, glowing
-  const { width: inkWidth, height: inkHeight } = pen.canvas;
-  const pixels = pen.getImageData(0, 0, inkWidth, inkHeight).data;
-  const r = Math.round(LIT.radius * fine);
+  const stamp = dot.getContext("2d");
+  if (!mask || !paint || !stamp) return image;
+  // one dot, solid to `inner` of the way from its middle to its cell's corner and gone by `outer`
+  const edge = stamp.createRadialGradient(cell / 2, cell / 2, 0, cell / 2, cell / 2, LIT.outer * cell * Math.SQRT1_2);
+  edge.addColorStop(0, "#000");
+  edge.addColorStop(LIT.inner / LIT.outer, "#000");
+  edge.addColorStop(1, "rgba(0, 0, 0, 0)");
+  stamp.fillStyle = edge;
+  stamp.fillRect(0, 0, dot.width, dot.height);
+  for (let i = 0; i * cell < width; i++) for (let j = 0; j * cell < height; j++) mask.drawImage(dot, i * cell, j * cell);
+  // the words, only where the dots are
+  mask.globalCompositeOperation = "source-in";
+  mask.drawImage(ink.context.canvas, 0, 0);
+  ink.texture.dispose();
+  // glowing
   paint.shadowColor = LIT.glow;
-  paint.shadowBlur = LIT.blur * k;
-  for (let i = 0; (i + 0.5) * DOT < width; i++) {
-    for (let j = 0; (j + 0.5) * DOT < height; j++) {
-      const cx = Math.round((i + 0.5) * DOT * fine);
-      const cy = Math.round((j + 0.5) * DOT * fine);
-      let cover = 0;
-      let red = 0;
-      let count = 0;
-      for (let y = cy - r; y <= cy + r; y++) {
-        for (let x = cx - r; x <= cx + r; x++) {
-          if (x < 0 || y < 0 || x >= inkWidth || y >= inkHeight || (x - cx) ** 2 + (y - cy) ** 2 > r * r) continue;
-          const at = (y * inkWidth + x) * 4;
-          cover += pixels[at + 3];
-          red += pixels[at + 3] * (pixels[at + 1] < 150 ? 1 : 0);
-          count++;
-        }
-      }
-      if (!count || cover < count * 20) continue;
-      paint.globalAlpha = Math.min(1, cover / count / 255 / 0.6);
-      paint.fillStyle = red > cover / 2 ? SPOT.color : LIT.color;
-      paint.beginPath();
-      paint.arc((i + 0.5) * DOT * k, (j + 0.5) * DOT * k, LIT.radius * k, 0, Math.PI * 2);
-      paint.fill();
-    }
-  }
+  paint.shadowBlur = LIT.blur * ink.k;
+  paint.drawImage(lit, 0, 0);
   return image;
 }
 
@@ -169,7 +162,7 @@ export function LedSign({ place, name, sub, speed = 1, at }: Props) {
   // (nothing yet, so the first frame always paints)
   const time = useRef<number | undefined>(undefined);
   const painted = useRef(Number.NaN);
-  const face = useMemo(() => faceCanvas(WIDTH, HEIGHT, 300), []);
+  const face = useMemo(() => faceCanvas(WIDTH, HEIGHT, PIXELS), []);
   const back = useMemo(() => {
     const plain = faceCanvas(WIDTH, HEIGHT, face.k);
     board(sub, plain);

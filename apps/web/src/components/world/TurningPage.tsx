@@ -3,25 +3,29 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
+  BackSide,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
-  DoubleSide,
-  type Mesh,
+  FrontSide,
+  type Group,
   MeshStandardMaterial,
+  type Side,
   SRGBColorSpace,
 } from "three";
-import { ease, type MotionProps } from "./motion/cycle";
-import { usePlayOnPoke } from "./motion/pointing";
-import { useRoomLight } from "./roomLight";
-import { COLUMNS, FLAT, FRONT, INK, LAG, LINES, PAGE, PAPER, ROWS, SPINE, TURN } from "./TurningPage.constants";
+import { PRINT_BACK, PRINT_FRONT, type PrintLayer } from "./constants/bookPrintLayout.constants";
+import { ease, type MotionProps } from "./utils/cycle";
+import { usePlayWhilePointed } from "./utils/pointing";
+import { useRoomLight } from "./utils/roomLight";
+import { AGAIN, COLUMNS, FLAT, FRONT, LAG, PAGE, PAPER, PRINT_PIXELS, ROWS, SPINE, TURN } from "./constants/TurningPage.constants";
 
 // A page turning over the open book, as on the prototype's map (its bookFlipFrame()). The page is
 // a grid of points, and each one turns round the spine from the right-hand page to the left-hand
 // one: slowly, then fast, then slowly. The top outer corner leads, and the points nearer the spine
 // and the foot of the page follow up to 30% of the turn later, so the page curls over the way it
 // does when you turn it by its corner. Each row is laid out from the spine one step at a time, each
-// step in the direction its own point has turned to, which is what bends the page.
+// step in the direction its own point has turned to, which is what bends the page. Its front carries
+// the right-hand page's printing and its back the left-hand page's, so it matches both where it lies.
 
 /** How far round the spine the point s out from it and z up the page has turned, t of the way through */
 function angle(s: number, z: number, t: number): number {
@@ -29,9 +33,9 @@ function angle(s: number, z: number, t: number): number {
   return PAGE.open + (Math.PI - 2 * PAGE.open) * ease((t - LAG * (1 - lead)) / (1 - LAG));
 }
 
-/** The page's paper with its lines of writing, the same on both sides */
-function writing(): CanvasTexture {
-  const width = 512;
+/** One side of the page: the paper with its printing */
+function printed(layers: PrintLayer[]): CanvasTexture {
+  const width = PRINT_PIXELS;
   const height = Math.round((width * PAGE.height) / PAGE.width);
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -40,15 +44,18 @@ function writing(): CanvasTexture {
   if (context) {
     context.fillStyle = PAPER;
     context.fillRect(0, 0, width, height);
-    context.fillStyle = INK;
-    for (let k = 0; k < LINES.count; k++) {
-      const top = LINES.first + k * LINES.gap + LINES.height;
-      context.fillRect(
-        (LINES.from / PAGE.width) * width,
-        (1 - top / PAGE.height) * height,
-        ((LINES.to - LINES.from) / PAGE.width) * width,
-        (LINES.height / PAGE.height) * height,
-      );
+    for (const [color, shapes] of layers) {
+      context.fillStyle = color;
+      for (const shape of shapes) {
+        context.beginPath();
+        shape.forEach(([s, z], k) => {
+          const x = (s / PAGE.width) * width;
+          const y = (1 - z / PAGE.height) * height;
+          if (k) context.lineTo(x, y);
+          else context.moveTo(x, y);
+        });
+        context.fill();
+      }
     }
   }
   const texture = new CanvasTexture(canvas);
@@ -102,20 +109,20 @@ function bend(geometry: BufferGeometry, t: number) {
 }
 
 /**
- * The turning page, in book.glb's own frame: put it in the same group as the book model. It turns
- * once each time `poke` goes up, and shows only while it turns; at rest it would lie exactly on the
+ * The turning page, in book.glb's own frame: put it in the same group as the book model. Page after
+ * page turns while `pointing`, and it shows only while it turns; at rest it would lie exactly on the
  * book's own pages.
  */
-export function TurningPage({ speed = 1, at, poke }: MotionProps) {
-  const page = useRef<Mesh>(null);
-  const play = usePlayOnPoke(TURN, { speed, poke });
+export function TurningPage({ speed = 1, at, pointing }: MotionProps) {
+  const page = useRef<Group>(null);
+  const play = usePlayWhilePointed(TURN, { speed, pointing }, AGAIN);
   const light = useRoomLight();
   const geometry = useMemo(() => sheet(), []);
-  const material = useMemo(
-    () =>
+  const [front, back] = useMemo(() => {
+    const side = (layers: PrintLayer[], which: Side) =>
       new MeshStandardMaterial({
-        map: writing(),
-        side: DoubleSide,
+        map: printed(layers),
+        side: which,
         roughness: 1,
         metalness: 0,
         envMap: light,
@@ -124,16 +131,18 @@ export function TurningPage({ speed = 1, at, poke }: MotionProps) {
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -4,
-      }),
-    [light],
-  );
+      });
+    return [side(PRINT_FRONT, FrontSide), side(PRINT_BACK, BackSide)];
+  }, [light]);
   useEffect(
     () => () => {
       geometry.dispose();
-      material.map?.dispose();
-      material.dispose();
+      for (const material of [front, back]) {
+        material.map?.dispose();
+        material.dispose();
+      }
     },
-    [geometry, material],
+    [geometry, front, back],
   );
 
   useFrame(() => {
@@ -143,5 +152,10 @@ export function TurningPage({ speed = 1, at, poke }: MotionProps) {
     if (page.current.visible) bend(geometry, t);
   });
 
-  return <mesh ref={page} geometry={geometry} material={material} frustumCulled={false} />;
+  return (
+    <group ref={page}>
+      <mesh geometry={geometry} material={front} frustumCulled={false} />
+      <mesh geometry={geometry} material={back} frustumCulled={false} />
+    </group>
+  );
 }

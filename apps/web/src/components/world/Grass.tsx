@@ -13,12 +13,14 @@ import {
   UniformsLib,
   UniformsUtils,
 } from "three";
-import { BLADE, GRASS_TONES, SEGMENTS, SRC, STALK, STEM } from "./Grass.constants";
-import { WIND_GUST_GLSL, windNoise } from "./motion/wind";
+import { BLADE, GRASS_TONES, SEGMENTS, SRC, STALK, STEM } from "./constants/Grass.constants";
+import { WIND_GUST_GLSL, windNoise } from "./utils/wind";
+import { outskirtsGrass } from "./utils/outskirts";
+import { ownWave, WAVE_GLSL, WAVE_UNIFORMS } from "./utils/wave";
 
 // The meadow's long soft grass and the wild flowers standing in it, as on the prototype's world map
 // (its startGrass): about 40,000 blades and 741 flowers on thin stems, all bending in the wind. Gusts
-// roll across the meadow from the left of the screen to the right (motion/wind.ts): where one passes
+// roll across the meadow from the left of the screen to the right (utils/wind.ts): where one passes
 // the blades lean over together and catch the light, turning a paler green, so patches of light
 // grass sweep over it; each blade also has its own lean and shakes a little while the gust is strong.
 //
@@ -26,7 +28,8 @@ import { WIND_GUST_GLSL, windNoise } from "./motion/wind";
 // world-grass.bin); how they bend is the page's own drawing, worked out on the graphics card. Each
 // blade is the page's curve, from the root up to its tip, a pixel or so wide on screen however near
 // or far it is (and never thinner than the page's 0.06 when seen from far off). They fade into the
-// haze with distance like everything else.
+// haze with distance like everything else. Past the prototype's meadow the grass and flowers run on
+// over the outskirts (outskirts.ts), thinning out into the haze.
 
 // The wind and the bend, as the page works them out for a blade or a stem whose root is at (x, z):
 // the spot on the prototype's picture, then the gust passing over it (about -1 to 1)
@@ -37,6 +40,7 @@ const WIND = /* glsl */ `
   uniform float uLeast;
   uniform float uStill;
   ${WIND_GUST_GLSL}
+  ${WAVE_GLSL}
   #include <fog_pars_vertex>
   // the page's still meadow: every blade a little over, nothing moving
   float gustAt(vec2 root) {
@@ -92,7 +96,9 @@ const BLADE_VERTEX = /* glsl */ `
     float t = along;
     vec2 q = 2.0 * (1.0 - t) * t * control + t * t * tip;
     vec2 dq = 2.0 * (1.0 - 2.0 * t) * control + 2.0 * t * tip;
-    gl_Position = widened(root, q, dq, side);
+    // (lying flat on the paper until the opening's wave comes)
+    gl_Position = widened(root, q * waveRise(root), dq, side);
+    vWaveGround = root;
     vColor = uTones[int(shape.w) * 4 + int(min(3.0, floor(w * 4.0)))];
   }
 `;
@@ -114,7 +120,9 @@ const STEM_VERTEX = /* glsl */ `
     float t = along;
     vec2 q = 2.0 * (1.0 - t) * t * control + t * t * tip;
     vec2 dq = 2.0 * (1.0 - 2.0 * t) * control + 2.0 * t * tip;
-    gl_Position = widened(root, q, dq, side);
+    // (lying flat on the paper until the opening's wave comes)
+    gl_Position = widened(root, q * waveRise(root), dq, side);
+    vWaveGround = root;
     vColor = uColor;
   }
 `;
@@ -146,7 +154,8 @@ const BLOOM_VERTEX = /* glsl */ `
       r = 0.042;
     }
     // a little disc facing the camera, r on the picture (√(2/3) of a map unit each)
-    vec4 middle = modelViewMatrix * vec4(onMap(root, at), 1.0);
+    vec4 middle = modelViewMatrix * vec4(onMap(root, at * waveRise(root)), 1.0);
+    vWaveGround = root;
     middle.xy += corner * r * 0.81649658;
     gl_Position = projectionMatrix * middle;
     #ifdef USE_FOG
@@ -159,22 +168,26 @@ const BLOOM_VERTEX = /* glsl */ `
 
 const FLAT_FRAGMENT = /* glsl */ `
   varying vec3 vColor;
+  ${WAVE_GLSL}
   #include <fog_pars_fragment>
   void main() {
     gl_FragColor = vec4(vColor, 1.0);
     #include <colorspace_fragment>
+    gl_FragColor.rgb = wavePaint(gl_FragColor.rgb, vWaveGround);
     #include <fog_fragment>
   }
 `;
 
 const DISC_FRAGMENT = /* glsl */ `
   varying vec3 vColor;
+  ${WAVE_GLSL}
   varying vec2 vCorner;
   #include <fog_pars_fragment>
   void main() {
     if (dot(vCorner, vCorner) > 1.0) discard;
     gl_FragColor = vec4(vColor, 1.0);
     #include <colorspace_fragment>
+    gl_FragColor.rgb = wavePaint(gl_FragColor.rgb, vWaveGround);
     #include <fog_fragment>
   }
 `;
@@ -211,11 +224,12 @@ function wind(width: { pixels: number; least: number }, extra: Uniforms = {}): U
     uLeast: { value: width.least },
     uStill: { value: 0 },
     windNoise: { value: windNoise() },
+    ...WAVE_UNIFORMS,
     ...extra,
   };
 }
 
-/** The grass and flowers from world-grass.bin (see grass.js for its layout) */
+/** The grass and flowers from world-grass.bin (see grass.js for its layout), and the outskirts' after them */
 function parse(data: ArrayBuffer) {
   const head = new DataView(data);
   const blades = head.getUint32(0, true);
@@ -226,9 +240,15 @@ function parse(data: ArrayBuffer) {
     return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
   });
   const start = 12 + colours * 4;
-  const B = new Int16Array(data, start, blades * 6);
-  const F = new Int16Array(data, start + blades * 12, flowers * 9);
-  return { blades, flowers, palette, B, F };
+  const own = { B: new Int16Array(data, start, blades * 6), F: new Int16Array(data, start + blades * 12, flowers * 9) };
+  const more = outskirtsGrass(own.B, own.F);
+  const B = new Int16Array(own.B.length + more.blades.length);
+  B.set(own.B);
+  B.set(more.blades, own.B.length);
+  const F = new Int16Array(own.F.length + more.flowers.length);
+  F.set(own.F);
+  F.set(more.flowers, own.F.length);
+  return { blades: B.length / 6, flowers: F.length / 9, palette, B, F };
 }
 
 export function Grass() {
@@ -251,12 +271,12 @@ export function Grass() {
     grass.setAttribute("root", new InstancedBufferAttribute(root, 2));
     grass.setAttribute("shape", new InstancedBufferAttribute(shape, 4));
     grass.instanceCount = blades;
-    const grassLook = new ShaderMaterial({
+    const grassLook = ownWave(new ShaderMaterial({
       vertexShader: BLADE_VERTEX,
       fragmentShader: FLAT_FRAGMENT,
       fog: true,
       uniforms: wind(BLADE, { uTones: { value: GRASS_TONES.flat().map(linear) } }),
-    });
+    }));
     // the flowers' stems
     const stems = strip();
     const stemRoot = new Float32Array(flowers * 2);
@@ -268,12 +288,12 @@ export function Grass() {
     stems.setAttribute("root", new InstancedBufferAttribute(stemRoot, 2));
     stems.setAttribute("shape", new InstancedBufferAttribute(stemShape, 4));
     stems.instanceCount = flowers;
-    const stemLook = new ShaderMaterial({
+    const stemLook = ownWave(new ShaderMaterial({
       vertexShader: STEM_VERTEX,
       fragmentShader: FLAT_FRAGMENT,
       fog: true,
       uniforms: wind(STALK, { uColor: { value: linear(STEM) } }),
-    });
+    }));
     // and their blooms, four each
     const blooms = new InstancedBufferGeometry();
     blooms.setAttribute("corner", new Float32BufferAttribute([-1, -1, 1, -1, 1, 1, -1, 1], 2));
@@ -296,12 +316,12 @@ export function Grass() {
     blooms.setAttribute("shape", new InstancedBufferAttribute(bloomShape, 4));
     blooms.setAttribute("color", new InstancedBufferAttribute(bloomColor, 3));
     blooms.instanceCount = flowers * 4;
-    const bloomLook = new ShaderMaterial({
+    const bloomLook = ownWave(new ShaderMaterial({
       vertexShader: BLOOM_VERTEX,
       fragmentShader: DISC_FRAGMENT,
       fog: true,
       uniforms: wind(STALK),
-    });
+    }));
     return [
       { geometry: grass, material: grassLook, pixels: BLADE.pixels },
       { geometry: stems, material: stemLook, pixels: STALK.pixels },

@@ -2,9 +2,18 @@
 
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
-import { AlwaysDepth, type Mesh, MeshBasicMaterial } from "three";
-import { grain } from "./grain";
-import { MEADOW_PAINTED, MEADOW_REACH, SRC } from "./Ground.constants";
+import {
+  AlwaysDepth,
+  BufferGeometry,
+  Color,
+  Float32BufferAttribute,
+  type Mesh,
+  MeshBasicMaterial,
+  SRGBColorSpace,
+} from "three";
+import { grain } from "./utils/grain";
+import { MEADOW_PAINTED, MEADOW_REACH, SRC } from "./constants/Ground.constants";
+import { OUTSKIRTS_MEADOW } from "./utils/outskirts";
 
 // Everything lying flat on the prototype's world map, exactly as its buildWorld() lays it: the
 // meadow with its painted patches, the dirt paths with their cobbles and stepping stones, the
@@ -17,9 +26,34 @@ import { MEADOW_PAINTED, MEADOW_REACH, SRC } from "./Ground.constants";
 // order whatever lies in front, before anything else, so each layer covers the one under it as on
 // the prototype's map, however close together they lie. They still leave their depth behind, so
 // whatever stands on the ground, or reaches a little below it, is hidden where the ground covers it.
+// Past the prototype's own painting, the outskirts' meadow is painted in patches the same way
+// (outskirts.ts), over the plain meadow and the model.
 
 // fields and the ground share the same light grain, as on the prototype's map
 const GROUND_GRAIN = grain(0);
+
+/** The outskirts' painted patches, each filled from its middle, in the order they're painted */
+function meadowPatches(): BufferGeometry {
+  const position: number[] = [];
+  const colour: number[] = [];
+  const c = new Color();
+  for (const { outline, color, lift } of OUTSKIRTS_MEADOW) {
+    c.setStyle(color, SRGBColorSpace);
+    const mid = outline.reduce(
+      ([x, z], p) => [x + p[0] / outline.length, z + p[1] / outline.length],
+      [0, 0],
+    );
+    outline.forEach((p, i) => {
+      const q = outline[(i + 1) % outline.length];
+      position.push(mid[0], lift, mid[1], q[0], lift, q[1], p[0], lift, p[1]);
+      for (let k = 0; k < 3; k++) colour.push(c.r, c.g, c.b);
+    });
+  }
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(position, 3));
+  g.setAttribute("color", new Float32BufferAttribute(colour, 3));
+  return g;
+}
 
 export function Ground() {
   const { scene } = useGLTF(SRC);
@@ -36,16 +70,17 @@ export function Ground() {
   );
   // the plain meadow round the model, painted first so the model covers it
   const meadow = useMemo(
-    () =>
-      new MeshBasicMaterial({ ...GROUND_GRAIN, color: MEADOW_PAINTED, depthFunc: AlwaysDepth }),
+    () => new MeshBasicMaterial({ ...GROUND_GRAIN, color: MEADOW_PAINTED, depthFunc: AlwaysDepth }),
     [],
   );
+  const patches = useMemo(() => meadowPatches(), []);
   useEffect(
     () => () => {
       paint.dispose();
       meadow.dispose();
+      patches.dispose();
     },
-    [paint, meadow],
+    [paint, meadow, patches],
   );
   const ground = useMemo(() => {
     const copy = scene.clone();
@@ -65,6 +100,7 @@ export function Ground() {
         <planeGeometry args={[2 * MEADOW_REACH, 2 * MEADOW_REACH]} />
       </mesh>
       <primitive object={ground} />
+      <mesh geometry={patches} material={paint} renderOrder={-0.5} frustumCulled={false} />
     </>
   );
 }

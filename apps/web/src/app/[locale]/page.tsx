@@ -7,7 +7,10 @@ export default async function WorldPage() {
   const t = await getTranslations("World");
   return (
     <main className="fixed inset-0">
-      <World label={t("canvasLabel")} />
+      <World
+        label={t("canvasLabel")}
+        opening={{ enter: t("opening.enter"), building: t("opening.building"), ready: t("opening.ready") }}
+      />
     </main>
   );
 }

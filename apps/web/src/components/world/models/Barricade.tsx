@@ -12,15 +12,14 @@ import {
   SpriteMaterial,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import type { MotionProps } from "../motion/cycle";
-import { drawWords, faceCanvas, faceMaterial, flatSheet } from "../motion/face";
-import { FONTS } from "../motion/face.constants";
-import { usePlayOnPoke, usePointer, useStill } from "../motion/pointing";
-import { useParts } from "../motion/useParts";
-import { useRoomLight, withRoomLight } from "../roomLight";
+import type { MotionProps } from "../utils/cycle";
+import { drawWords, faceCanvas, faceMaterial, flatSheet } from "../utils/face";
+import { FONTS } from "../constants/face.constants";
+import { usePlayWhilePointed, usePointer, useStill } from "../utils/pointing";
+import { useParts } from "../utils/useParts";
+import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import {
   BLINK,
-  BLINKS,
   FACE,
   GLOW,
   HEIGHT,
@@ -31,17 +30,16 @@ import {
   OFF,
   ON,
   OUT,
-  PLAY,
   U,
   WIDTH,
   YELLOW,
-} from "./Barricade.constants";
+} from "../constants/Barricade.constants";
 
 // The future-city plot's construction barricade. Its yellow board carries the plot's name in
 // stencilled letters over hazard stripes, as the prototype's page lays them on it, and two warning
-// lamps stand on top. Pointing at it blinks the lamps: each lights for a quarter of a second and
-// goes out for a quarter, six times, the right one a quarter of a second behind the left
-// (lamp-blink), and pointing again does nothing until they've finished (3.2 s).
+// lamps stand on top. Pointing at it blinks the lamps (lamp-blink): each lights for a quarter of a
+// second and goes out for a quarter, the right one a quarter of a second behind the left, so they
+// take turns, for as long as the pointer stays on it.
 
 /** The board's face: the name and status in stencil letters, hazard stripes along its foot */
 function paintBoard(name: string, sub: string) {
@@ -114,13 +112,13 @@ type Props = MotionProps & {
   sub: string;
 };
 
-/** The future-city plot's barricade, its lamps blinking when pointed at */
+/** The future-city plot's barricade, its lamps blinking while pointed at */
 export function Barricade({ place, name, sub, ...motion }: Props) {
   const { model, toModel } = useParts("/models/barricade.glb");
   const light = useRoomLight();
   const still = useStill();
   const pointer = usePointer();
-  const play = usePlayOnPoke(PLAY, { ...motion, poke: (motion.poke ?? 0) + pointer.poke });
+  const play = usePlayWhilePointed(BLINK, { ...motion, pointing: motion.pointing || pointer.pointing });
   const fromModel = useMemo(() => toModel.clone().invert(), [toModel]);
   const face = useMemo(() => paintBoard(name, sub), [name, sub]);
   const sheet = useMemo(() => flatSheet(FACE, OUT, LIFT), []);
@@ -159,8 +157,7 @@ export function Barricade({ place, name, sub, ...motion }: Props) {
   useFrame(() => {
     const t = still ? undefined : play();
     lamps.forEach((lamp, i) => {
-      const since = t === undefined ? -1 : t - i * LAG;
-      const lit = since >= 0 && since < BLINKS * BLINK && since % BLINK < BLINK / 2;
+      const lit = t !== undefined && (t - i * LAG + BLINK) % BLINK < BLINK / 2;
       lamp.color.set(lit ? ON : OFF);
       lamp.emissiveIntensity = lit ? 0.9 : 0;
       halos[i].opacity = lit ? 1 : 0;

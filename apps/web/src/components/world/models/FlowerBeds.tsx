@@ -11,19 +11,20 @@ import {
   type Object3D,
   SRGBColorSpace,
 } from "three";
-import { BED_FEET, BED_LINES, BED_PARTS } from "../bedLayout";
-import { useCityHit, useCityPoke } from "../motion/cityPointing";
-import { through } from "../motion/cycle";
-import { usePlayOnPoke, useStill } from "../motion/pointing";
-import { useParts } from "../motion/useParts";
-import type { SceneryPlacement } from "../sceneryLayout";
-import { BUD, CUT, GROW, HIT_HEIGHT, PAPER, STAGES } from "./FlowerBeds.constants";
+import { BED_FEET, BED_LINES, BED_PARTS } from "../constants/bedLayout.constants";
+import { useCityHit, useInCity } from "../utils/cityPointing";
+import { through } from "../utils/cycle";
+import { usePlayWhilePointed, useStill } from "../utils/pointing";
+import { useParts } from "../utils/useParts";
+import type { SceneryPlacement } from "../constants/sceneryLayout.constants";
+import { AGAIN, BUD, CUT, GROW, HIT_HEIGHT, PAPER, STAGES } from "../constants/FlowerBeds.constants";
 
-// Music City's five flower beds round the piano. Pointing anywhere in Music City grows them all once,
-// as the prototype's curvedBed draws them growing (its CROP_STAGES.bloom, a stage every 125 ms over
+// Music City's five flower beds round the piano. Pointing anywhere in Music City grows them all, as
+// the prototype's curvedBed draws them growing (its CROP_STAGES.bloom, a stage every 125 ms over
 // 1.5 s): cut back to little stubs, the plants come up from their feet to full size by 0.6, buds show
-// from 0.45, green and small, then swell and colour until every blossom is open at 0.9. Pointing
-// again while they grow doesn't start them over.
+// from 0.45, green and small, then swell and colour until every blossom is open at 0.9. They stand in
+// flower a moment, then grow again, for as long as the pointer stays in the city; once it leaves they
+// finish growing and stay in flower.
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -177,13 +178,13 @@ function drawBeds(
   }
 }
 
-/** Music City's flower beds, growing when the city is pointed at */
+/** Music City's flower beds, growing while the city is pointed at */
 export function FlowerBeds({ model: name, position, yaw, scale, fade }: SceneryPlacement) {
   const { model } = useParts(`/models/${name}.glb`);
   const still = useStill();
-  const poke = useCityPoke("music");
+  const pointing = useInCity("music");
   const hit = useCityHit("music");
-  const play = usePlayOnPoke(GROW, { poke });
+  const play = usePlayWhilePointed(GROW, { pointing }, AGAIN);
   const bands = useMemo(() => BED_LINES.map(hitBand), []);
   const plants = useRef<ReturnType<typeof plantsOf>>(null);
   const shown = useRef<number | null>(null);

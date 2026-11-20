@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { type RefObject, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BackSide,
   Color,
@@ -13,14 +13,16 @@ import {
   Vector2,
   type Vector3,
 } from "three";
-import { HOWL } from "@/lib/palette";
+import { HOWL } from "./constants/palette.constants";
 import { FieldPlants, Fields } from "./Fields";
 import { Foliage } from "./Foliage";
 import { Grass } from "./Grass";
 import { Ground } from "./Ground";
+import { Arrived, type Intro, Opening, type OpeningWords } from "./Opening";
 import { Fountain } from "./models/Fountain";
 import { PlazaWall } from "./PlazaWall";
 import { Pond } from "./Pond";
+import { River } from "./River";
 import { Scenery } from "./Scenery";
 import { Signs } from "./Signs";
 import { SurveyFlags } from "./SurveyFlags";
@@ -29,25 +31,28 @@ import { WindLines } from "./WindLines";
 import {
   CAM_Y,
   DOME,
+  FIT_ROOM,
   FOG,
   FOV,
   FRAME,
   HALF_FOV,
   OUT_FLOOR,
+  OPENING,
   OUT_FRAME,
   REACH,
   ROAM,
   TILT,
-} from "./WorldCanvas.constants";
+} from "./constants/WorldCanvas.constants";
 import { WorldLights } from "./WorldLights";
 import { WorldProps } from "./WorldProps";
 
-type Props = { label: string };
+type Props = { label: string; opening: OpeningWords };
 
 const clamp = (value: number, [low, high]: readonly [number, number]) => Math.max(low, Math.min(high, value));
-// how far back the camera stands to show a frame of ground across and down a screen of this shape
+// how far back the camera stands to show a frame of ground across and down a screen of this shape,
+// with room for the nearest ground
 const fitting = (frame: { width: number; height: number }, aspect: number) =>
-  Math.max(frame.height / 2 / HALF_FOV, frame.width / 2 / (HALF_FOV * aspect));
+  FIT_ROOM * Math.max(frame.height / 2 / HALF_FOV, frame.width / 2 / (HALF_FOV * aspect));
 // a colour's red, green and blue on the page (0 to 1), to mix two of them as the prototype does
 const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
 const mix = (a: number[], b: number[], k: number) => a.map((v, i) => v + (b[i] - v) * k);
@@ -82,7 +87,7 @@ function Sky() {
     <>
       <color attach="background" args={[HOWL.light.sky.low]} />
       <fog attach="fog" args={[HOWL.light.sky.low, FOG[0], FOG[1]]} />
-      <mesh ref={dome} geometry={geometry} renderOrder={-1} frustumCulled={false}>
+      <mesh ref={dome} geometry={geometry} renderOrder={-1} frustumCulled={false} userData={{ noWave: true }}>
         <meshBasicMaterial vertexColors side={BackSide} fog={false} depthWrite={false} />
       </mesh>
     </>
@@ -97,10 +102,12 @@ type Drag = { pan: boolean; moved: boolean; start: [number, number]; mid: [numbe
  * Walking round the world, as the prototype's "Walk around in 3D" view. Dragging turns the view
  * round the spot it looks at and tilts it, and it turns on a little after letting go; the right
  * button, shift or two fingers move over the land; the wheel or a pinch zooms in on the spot under
- * the pointer; a double-click glides there; the arrow keys turn and tilt, + and - zoom. It opens where
- * the prototype's map does: from the same side and height, framing what the map's frame shows.
+ * the pointer; a double-click glides there; the arrow keys turn and tilt, + and - zoom. Moving over
+ * the land is free, out into the outskirts' meadows and woods (outskirts.ts), as far as ROAM from the
+ * fountain. It opens close in on the World Plaza and Story City (OPENING), and zooms out as far as
+ * the prototype's map shows. It stays still while the opening plays.
  */
-function WalkControls() {
+function WalkControls({ intro }: { intro: RefObject<Intro> }) {
   const get = useThree((state) => state.get);
   const tick = useRef<(ms: number) => void>(() => {});
 
@@ -108,8 +115,13 @@ function WalkControls() {
     const { camera, gl, size } = get();
     const canvas = gl.domElement;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const o: Orbit = { tx: FRAME.center[0], tz: FRAME.center[2], th: Math.PI / 4, ph: Math.acos(1 / Math.sqrt(3)), r: 50 };
-    o.r = fitting(FRAME, size.width / Math.max(1, size.height));
+    const o: Orbit = {
+      tx: OPENING.center[0],
+      tz: OPENING.center[1],
+      th: OPENING.turn,
+      ph: OPENING.tilt,
+      r: OPENING.distance * Math.max(1, OPENING.aspect / (size.width / Math.max(1, size.height))),
+    };
     const vel = { th: 0, ph: 0 };
     let glide: { from: [number, number]; to: [number, number]; t0: number; ms: number } | null = null;
     let drag: Drag | null = null;
@@ -166,7 +178,7 @@ function WalkControls() {
       const kz = k / Math.max(0.35, Math.cos(o.ph));
       const c = Math.cos(o.th);
       const s = Math.sin(o.th);
-      o.tx += -c * dx * k - s * dy * kz;
+      o.tx -= c * dx * k + s * dy * kz;
       o.tz += s * dx * k - c * dy * kz;
       place();
     }
@@ -183,6 +195,7 @@ function WalkControls() {
     };
     const onContextMenu = (event: MouseEvent) => event.preventDefault();
     const onPointerDown = (event: PointerEvent) => {
+      if (intro.current.on) return;
       pointers[event.pointerId] = [event.clientX, event.clientY];
       vel.th = vel.ph = 0;
       glide = null;
@@ -248,6 +261,7 @@ function WalkControls() {
       drag = null;
     };
     const onWheel = (event: WheelEvent) => {
+      if (intro.current.on) return;
       const d =
         event.deltaY * (event.deltaMode === 1 ? 33 : event.deltaMode === 2 ? 800 : 1) * (event.ctrlKey ? 10 : 1);
       const f = 0.95 ** (Math.abs(d) * 0.01);
@@ -258,10 +272,12 @@ function WalkControls() {
     };
     // a double-click glides the camera to the spot on the ground
     const onDoubleClick = (event: MouseEvent) => {
+      if (intro.current.on) return;
       const g = groundAt(event.clientX, event.clientY);
       if (g) glide = { from: [o.tx, o.tz], to: [g.x, g.z], t0: performance.now(), ms: still ? 1 : 650 };
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      if (intro.current.on) return;
       const k = event.key;
       if (k === "ArrowLeft") o.th += 0.12;
       else if (k === "ArrowRight") o.th -= 0.12;
@@ -321,7 +337,7 @@ function WalkControls() {
       canvas.removeEventListener("dblclick", onDoubleClick);
       canvas.removeEventListener("keydown", onKeyDown);
     };
-  }, [get]);
+  }, [get, intro]);
 
   useFrame((_, delta) => tick.current(Math.min(50, delta * 1000)));
   return null;
@@ -340,7 +356,10 @@ function Landmarks() {
 
 // The 3D world, to walk round: the camera opens looking down the same diagonal as the reference
 // pictures, so the GLB models line up with how they were drawn, and then turns all the way round them.
-export default function WorldCanvas({ label }: Props) {
+// It opens on the paper with the welcome (Opening), and the world grows up out of it.
+export default function WorldCanvas({ label, opening }: Props) {
+  const intro = useRef<Intro>({ on: true, arrived: false });
+  const [welcome, setWelcome] = useState(true);
   return (
     <Canvas
       aria-label={label}
@@ -349,7 +368,7 @@ export default function WorldCanvas({ label }: Props) {
       dpr={[1, 2]}
       camera={{ fov: FOV, near: 1.5, far: 4000, position: [FRAME.center[0] + 30, 30, FRAME.center[2] + 30] }}
     >
-      <WalkControls />
+      <WalkControls intro={intro} />
       <Sky />
       <WorldLights />
       <Fields />
@@ -360,13 +379,25 @@ export default function WorldCanvas({ label }: Props) {
         <Grass />
         <WorldProps />
         <Pond />
+        <River />
         <PlazaWall />
         <Scenery />
         <Landmarks />
         <FieldPlants />
         <Symbols />
         <Signs />
+        <Arrived intro={intro} />
       </Suspense>
+      {welcome && (
+        <Opening
+          intro={intro}
+          words={opening}
+          onDone={() => {
+            intro.current.on = false;
+            setWelcome(false);
+          }}
+        />
+      )}
     </Canvas>
   );
 }

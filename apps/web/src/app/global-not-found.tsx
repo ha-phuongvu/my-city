@@ -12,7 +12,7 @@ export default function GlobalNotFound() {
     <html lang="en" className="h-full">
       <body className="h-full overflow-hidden">
         <main className="fixed inset-0">
-          <World label={en.World.canvasLabel} />
+          <World label={en.World.canvasLabel} opening={en.World.opening} />
         </main>
       </body>
     </html>

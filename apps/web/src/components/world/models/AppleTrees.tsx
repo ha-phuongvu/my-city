@@ -2,12 +2,12 @@
 
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { type BufferGeometry, type Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from "three";
-import { appleGeometry } from "../foliageMesh";
-import { leanAt, slideFor } from "../motion/wind";
-import { SWAY } from "../motion/wind.constants";
-import type { AppleTreePlacement } from "../treeLayout";
-import { DROP, DROP_EVERY, GONE, LYING, PICTURE, REGROW, RIGHT } from "./AppleTrees.constants";
+import { type BufferGeometry, DoubleSide, type Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from "three";
+import { appleGeometry } from "../utils/foliageMesh";
+import { leanAt, slideFor } from "../utils/wind";
+import { SWAY } from "../constants/wind.constants";
+import type { AppleTreePlacement } from "../constants/treeLayout.constants";
+import { DROP, DROP_EVERY, GONE, LYING, PICTURE, REGROW, RIGHT } from "../constants/AppleTrees.constants";
 
 // The apples hanging on the apple trees, which sway with their trees. Pointing at an apple tree
 // drops one of them, then another every 1.6 seconds while the pointer stays, as on the prototype's
@@ -78,7 +78,7 @@ export function AppleTrees({
         if (!shapes.has(color)) shapes.set(color, appleGeometry(1, color));
         list.push({
           geometry: shapes.get(color) as BufferGeometry,
-          look: new MeshBasicMaterial({ vertexColors: true, transparent: true }),
+          look: new MeshBasicMaterial({ vertexColors: true, transparent: true, side: DoubleSide }),
           apple: { tree, rest: new Vector3(x, y, z), radius: 0.07 * t.s },
         });
       }),

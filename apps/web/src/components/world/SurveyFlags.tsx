@@ -3,10 +3,10 @@
 import { useGLTF } from "@react-three/drei";
 import { useMemo } from "react";
 import { Vector3 } from "three";
-import { SURVEY_FLAGS } from "./fieldLayout";
+import { SURVEY_FLAGS } from "./constants/fieldLayout.constants";
 import { SurveyFlag } from "./models/SurveyFlag";
-import { frameOf, prototypeMatrix } from "./motion/prototype";
-import { LEAD_STEP, PERIOD, PERIOD_STEP, SCALE } from "./SurveyFlags.constants";
+import { frameOf, prototypeMatrix } from "./utils/prototype";
+import { LEAD_STEP, PERIOD, PERIOD_STEP, SCALE } from "./constants/SurveyFlags.constants";
 
 // The survey flags round the future-city plot, flying, as on the prototype's map: two red and
 // white and one blue and white, each half as big again as on its card. Each flag's wave takes a

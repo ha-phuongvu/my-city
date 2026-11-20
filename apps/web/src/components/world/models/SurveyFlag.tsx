@@ -10,10 +10,10 @@ import {
   MeshStandardMaterial,
   SRGBColorSpace,
 } from "three";
-import { type MotionProps, useCycle } from "../motion/cycle";
-import { useParts } from "../motion/useParts";
-import { useRoomLight, withRoomLight } from "../roomLight";
-import { ACROSS, ALONG, CLOTH, COLUMNS, FLAGS, ROWS } from "./SurveyFlag.constants";
+import { type MotionProps, useCycle } from "../utils/cycle";
+import { useParts } from "../utils/useParts";
+import { useRoomLight, withRoomLight } from "../utils/roomLight";
+import { ACROSS, ALONG, CLOTH, COLUMNS, FLAGS, ROWS } from "../constants/SurveyFlag.constants";
 
 // A survey flag flying in the wind, as on the prototype's map: a wave runs down the cloth from the
 // pole to its free end, growing as it goes (surveyFlag's at(u, v) with the phase going once round

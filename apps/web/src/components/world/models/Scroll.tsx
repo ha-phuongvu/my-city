@@ -3,15 +3,15 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Matrix4, Vector3 } from "three";
-import type { MotionProps } from "../motion/cycle";
-import { type Canvas, drawWords, faceCanvas, faceMaterial, faceSheet, type Words, wordsWidth } from "../motion/face";
-import { FONTS } from "../motion/face.constants";
-import { useCityHit, useCityPoke } from "../motion/cityPointing";
-import { usePlayOnPoke, useStill } from "../motion/pointing";
-import { moveInPrototype } from "../motion/prototype";
-import { useParts } from "../motion/useParts";
-import { useRoomLight } from "../roomLight";
-import { ACROSS, F, H, HEIGHT, INK, LIFT, NIB, ORIGIN, PAD, ROLL, U, W, WIDTH, WRITE } from "./Scroll.constants";
+import type { MotionProps } from "../utils/cycle";
+import { type Canvas, drawWords, faceCanvas, faceMaterial, faceSheet, type Words, wordsWidth } from "../utils/face";
+import { FONTS } from "../constants/face.constants";
+import { useCityHit, useInCity } from "../utils/cityPointing";
+import { usePlayWhilePointed, useStill } from "../utils/pointing";
+import { moveInPrototype } from "../utils/prototype";
+import { useParts } from "../utils/useParts";
+import { useRoomLight } from "../utils/roomLight";
+import { ACROSS, AGAIN, F, H, HEIGHT, INK, LIFT, NIB, ORIGIN, PAD, ROLL, U, W, WIDTH, WRITE } from "../constants/Scroll.constants";
 
 // Story City's name sign: a scroll of paper standing on the grass, a quill lying across it with its
 // nib on the writing, and the inkwell on the grass beside it. The city's name is written on the
@@ -19,7 +19,8 @@ import { ACROSS, F, H, HEIGHT, INK, LIFT, NIB, ORIGIN, PAD, ROLL, U, W, WIDTH, W
 // its lawn or its book) makes the words vanish and the quill write them again, line by line: the
 // nib lifts and moves to the start of a line, runs along it with a little up and down as
 // handwriting does while the line appears behind it, and when all are written the quill goes back
-// to rest (writeScroll). Pointing again does nothing until it has finished.
+// to rest (writeScroll). A moment later it writes them again, for as long as the pointer stays in
+// the city; once it leaves, the quill finishes the name and rests.
 
 /** The sheet's middle line k of the way up, and how far it curves toward us X across (scrollSign's prof and bend) */
 const profile = (k: number) => [
@@ -150,13 +151,13 @@ export function Scroll({ place, inkPlace, name, sub, ...motion }: Props) {
   const { model, part, toModel } = useParts("/models/scroll.glb");
   const light = useRoomLight();
   const still = useStill();
-  const city = useCityPoke("story");
+  const inCity = useInCity("story");
   const hit = useCityHit("story");
   const fromModel = useMemo(() => toModel.clone().invert(), [toModel]);
   const face = useMemo(() => faceCanvas(WIDTH, HEIGHT, 360), []);
   const lines = useMemo(() => layout(face, name, sub), [face, name, sub]);
   const writing = useMemo(() => path(lines), [lines]);
-  const play = usePlayOnPoke(writing.length, { ...motion, poke: (motion.poke ?? 0) + city });
+  const play = usePlayWhilePointed(writing.length, { ...motion, pointing: motion.pointing || inCity }, AGAIN);
   const sheet = useMemo(() => faceSheet(onSheet, 16, 12), []);
   const look = useMemo(() => faceMaterial(face.texture, light), [face, light]);
   const drawn = useRef<string>("");

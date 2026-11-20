@@ -1,8 +1,8 @@
 "use client";
 
 import { SoftShadows } from "@react-three/drei";
-import { HOWL } from "@/lib/palette";
-import { SHADOW_REACH } from "./WorldLights.constants";
+import { HOWL } from "./constants/palette.constants";
+import { SHADOW_REACH, SUN_AT } from "./constants/WorldLights.constants";
 
 // The light setup from the prototype's Models tab: a warm golden sun from the upper left, sky fill
 // from above and meadow bounce from below, so shaded sides turn cool blue instead of grey. The sun
@@ -15,7 +15,7 @@ export function WorldLights() {
       <directionalLight
         color={HOWL.light.sun}
         intensity={3.0}
-        position={[-40, 70, 30]}
+        position={SUN_AT}
         castShadow
         shadow-mapSize={[4096, 4096]}
         shadow-camera-left={-SHADOW_REACH}

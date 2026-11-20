@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo } from "react";
 import type { Matrix4, Mesh, MeshStandardMaterial } from "three";
-import { drawWords, faceCanvas, faceMaterial, flatSheet } from "../motion/face";
-import { FONTS } from "../motion/face.constants";
-import { useParts } from "../motion/useParts";
-import { useRoomLight } from "../roomLight";
-import { CREAM, FACE, FADE, FADED, HEIGHT, LIFT, OUT, SHADOW, U, WIDTH } from "./NameSign.constants";
+import { drawWords, faceCanvas, faceMaterial, flatSheet } from "../utils/face";
+import { FONTS } from "../constants/face.constants";
+import { useParts } from "../utils/useParts";
+import { useRoomLight } from "../utils/roomLight";
+import { CREAM, FACE, FADE, FADED, HEIGHT, LIFT, OUT, SHADOW, U, WIDTH } from "../constants/NameSign.constants";
 
 // A city's wooden A-frame name sign (Movie City's). Its name is painted on the front board in cream,
 // as the prototype's page lays it there: the first word big, the rest under it in capitals, a thin

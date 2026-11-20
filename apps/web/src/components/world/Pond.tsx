@@ -14,9 +14,9 @@ import {
   Vector2,
   Vector3,
 } from "three";
-import { useStill } from "./motion/pointing";
-import { DASHES, LIFT, PATTERN, RING_TIME } from "./Pond.constants";
-import { POND_LANES, POND_RINGS, POND_WATER } from "./pondLayout";
+import { useStill } from "./utils/pointing";
+import { DASHES, LIFT, PATTERN, RING_TIME } from "./constants/Pond.constants";
+import { POND_LANES, POND_RINGS, POND_WATER } from "./constants/pondLayout.constants";
 
 // The pond's water flowing, as on the prototype's map (its fx-pond): six pale streaks drift slowly
 // along the pond's length, and now and then a soft ring spreads out and fades, four of them in turn,

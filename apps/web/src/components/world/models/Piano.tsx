@@ -11,11 +11,12 @@ import {
   SpriteMaterial,
   SRGBColorSpace,
 } from "three";
-import type { MotionProps } from "../motion/cycle";
-import { usePlayOnPoke } from "../motion/pointing";
-import { useParts } from "../motion/useParts";
-import { useRoomLight, withRoomLight } from "../roomLight";
+import type { MotionProps } from "../utils/cycle";
+import { usePlayWhilePointed } from "../utils/pointing";
+import { useParts } from "../utils/useParts";
+import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import {
+  AGAIN,
   KEYS,
   NOTE_DRIFT,
   NOTE_FROM,
@@ -27,13 +28,13 @@ import {
   PRESSED,
   R,
   TUNE,
-} from "./Piano.constants";
+} from "../constants/Piano.constants";
 
-// Each time Music City is pointed at, its grand piano plays a short tune, a key at a time (the
-// prototype's frames: keys 3, 5, 7, 5, 10, 8, 6, 4 at 300 ms each). A pressed key is drawn as the
-// prototype draws it: a slightly taller key over the white keys, in shade. As it starts, three ♪s
-// rise over the piano and fade, one after another, as on the map; pointing again once the tune is
-// over starts it all again.
+// While Music City is pointed at, its grand piano plays a short tune over and over, a key at a time
+// (the prototype's frames: keys 3, 5, 7, 5, 10, 8, 6, 4 at 300 ms each), and ♪s rise over it and
+// fade, one setting off every 1.2 s. A pressed key is drawn as the prototype draws it: a slightly
+// taller key over the white keys, in shade. Once the pointer leaves, the tune plays to its end and
+// the ♪s already rising go on, but no more set off.
 
 /** A ♪ in the map's deep red with a thin white edge, as on the map */
 function glyph(text: string): CanvasTexture {
@@ -54,16 +55,17 @@ function glyph(text: string): CanvasTexture {
   return texture;
 }
 
-/** Music City's grand piano, playing its little tune when pointed at */
+/** Music City's grand piano, playing its little tune while the city is pointed at */
 export function Piano(motion: MotionProps) {
   const { model, toModel } = useParts("/models/piano.glb");
   const light = useRoomLight();
   const key = useRef<Mesh>(null);
   const notes = useRef<(Sprite | null)[]>([]);
-  const tune = usePlayOnPoke(TUNE.length * NOTE_TIME, motion);
-  // how long since the tune started, for the ♪s, which go on rising after it's over
+  const tune = usePlayWhilePointed(TUNE.length * NOTE_TIME, motion, AGAIN);
+  // how long the ♪s have been setting off (undefined while none are rising), and when the pointer left
+  // (undefined while it stays)
   const float = useRef<number | undefined>(undefined);
-  const before = useRef<number | undefined>(undefined);
+  const left = useRef<number | undefined>(undefined);
   const shape = useMemo(() => new BoxGeometry(KEYS.length, KEYS.width - 2 * PRESSED.gap, PRESSED.height), []);
   const shade = useMemo(
     () => withRoomLight(new MeshStandardMaterial({ color: PRESSED.color, roughness: 1, metalness: 0 }), light),
@@ -87,10 +89,16 @@ export function Piano(motion: MotionProps) {
 
   useFrame((_, delta) => {
     // the key being played, if any
-    const t = motion.at === undefined ? tune() : motion.at * TUNE.length * NOTE_TIME;
-    if (t !== undefined && before.current === undefined) float.current = 0;
-    else if (float.current !== undefined) float.current += delta * (motion.speed ?? 1);
-    before.current = t;
+    const t = tune();
+    if (motion.at === undefined) {
+      if (motion.pointing) {
+        float.current ??= 0;
+        left.current = undefined;
+      } else if (float.current !== undefined) left.current ??= float.current;
+      if (float.current !== undefined) float.current += delta * (motion.speed ?? 1);
+      if (float.current !== undefined && left.current !== undefined && float.current - left.current >= NOTE_LIFE)
+        float.current = left.current = undefined;
+    }
     const playing = t === undefined ? undefined : TUNE[Math.floor(t / NOTE_TIME)];
     if (key.current) {
       key.current.visible = playing !== undefined;
@@ -102,13 +110,16 @@ export function Piano(motion: MotionProps) {
         );
       }
     }
-    // each ♪ rises once and drifts off to the right, turning a little, fading in quickly and out slowly
+    // each ♪ rises and drifts off to the right, turning a little, fading in quickly and out slowly,
+    // then sets off again from the piano (unless it would set off after the pointer has gone)
     NOTES.forEach((note, i) => {
       const sprite = notes.current[i];
       if (!sprite) return;
-      const k = float.current === undefined ? -1 : (float.current - note.delay) / NOTE_LIFE;
-      sprite.visible = k >= 0 && k < 1;
+      const since = float.current === undefined ? -1 : float.current - note.delay;
+      const set = note.delay + Math.floor(since / NOTE_LIFE) * NOTE_LIFE;
+      sprite.visible = since >= 0 && (left.current === undefined || set < left.current);
       if (!sprite.visible) return;
+      const k = (since % NOTE_LIFE) / NOTE_LIFE;
       const out = 1 - (1 - k) * (1 - k);
       const across = note.across + NOTE_DRIFT * out;
       sprite.position.set(NOTE_FROM[0] + R * across, NOTE_FROM[1] - R * across, NOTE_FROM[2] + NOTE_RISE * out);

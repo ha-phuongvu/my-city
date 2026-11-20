@@ -15,14 +15,15 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import { FLOWER_PATCHES, type FlowerPatch } from "./fieldLayout";
-import { CUT, FLOWER, FLOWERS, GROW, LEAF, PINK_SHADE, STAGES, WHITE } from "./Fields.constants";
+import type { FlowerPatch } from "./constants/fieldLayout.constants";
+import { AGAIN, CUT, FLOWER, FLOWERS, GROW, LEAF, PATCHES, PINK_SHADE, STAGES, WHITE } from "./constants/Fields.constants";
 import { useModelSize } from "./Model";
-import { through } from "./motion/cycle";
-import { useRoomLight, withRoomLight } from "./roomLight";
+import { through } from "./utils/cycle";
+import { useRoomLight, withRoomLight } from "./utils/roomLight";
 
 // The field flowers growing wild in the grass, in patches where the prototype's world map has its
-// spaces for flowers (fieldLayout.ts): one big patch with two small ones beside it in each.
+// spaces for flowers (fieldLayout.ts): one big patch with two small ones beside it in each; and more
+// out over the outskirts (outskirts.ts).
 
 /** "cut" just after it is cut back, then how far grown, from 0 (bare stems) to 1 (in full flower) */
 type Stage = "cut" | number;
@@ -37,18 +38,29 @@ const tint = (a: string, b: string, k: number) => {
   return toHex(p.map((v, i) => v + (q[i] - v) * k) as Rgb);
 };
 
-// when each patch was last pointed at, on the canvas clock
+// when each growing patch started the round it's on, on the canvas clock, and the patches the pointer is on
 const started = new Map<FlowerPatch, number>();
+const pointed = new Set<FlowerPatch>();
 
 function startGrowing(patch: FlowerPatch, now: number) {
-  const start = started.get(patch);
-  if (start === undefined || now - start >= GROW) started.set(patch, now);
+  if (!started.has(patch)) started.set(patch, now);
 }
 
+/** How far the patch has grown by `now`: it grows round after round while it's pointed at, then finishes the round it's on */
 function stageOf(patch: FlowerPatch, now: number): Stage {
   const start = started.get(patch);
-  if (start === undefined || now - start >= GROW) return 1;
-  const t = now - start;
+  if (start === undefined) return 1;
+  let t = now - start;
+  if (t >= GROW && !pointed.has(patch)) {
+    started.delete(patch);
+    return 1;
+  }
+  if (t >= GROW + AGAIN) {
+    const rounds = Math.floor(t / (GROW + AGAIN));
+    started.set(patch, start + rounds * (GROW + AGAIN));
+    t -= rounds * (GROW + AGAIN);
+  }
+  if (t >= GROW) return 1;
   return t < CUT ? "cut" : through(STAGES, (t - CUT) / (GROW - CUT));
 }
 
@@ -57,15 +69,21 @@ const unitDisc = new CylinderGeometry(1, 1, 1, 24);
 /** Where pointing at a patch of flowers (or tapping it) starts it growing: an oval a little bigger than the patch, and the air over it (unseen) */
 function GrowHits() {
   const clock = useThree((state) => state.clock);
-  const hit = (patch: FlowerPatch) => () => startGrowing(patch, clock.elapsedTime);
-  return FLOWER_PATCHES.map((patch, i) => (
+  const tap = (patch: FlowerPatch) => () => startGrowing(patch, clock.elapsedTime);
+  const over = (patch: FlowerPatch) => () => {
+    pointed.add(patch);
+    startGrowing(patch, clock.elapsedTime);
+  };
+  const out = (patch: FlowerPatch) => () => pointed.delete(patch);
+  return PATCHES.map((patch, i) => (
     <mesh
       key={i}
       position={[patch.center[0], 0.3, patch.center[1]]}
       scale={[patch.radius[0] * 1.1, 0.6, patch.radius[1] * 1.1]}
       geometry={unitDisc}
-      onPointerOver={hit(patch)}
-      onPointerDown={hit(patch)}
+      onPointerOver={over(patch)}
+      onPointerOut={out(patch)}
+      onPointerDown={tap(patch)}
     >
       <meshBasicMaterial colorWrite={false} depthWrite={false} />
     </mesh>
@@ -171,10 +189,10 @@ export function FieldPlants() {
   );
   // which flowers belong to each patch, and the stage each was last drawn at
   const groups = useMemo(
-    () => FLOWER_PATCHES.map((patch) => FLOWERS.flatMap((plant, i) => (plant.patch === patch ? [i] : []))),
+    () => PATCHES.map((patch) => FLOWERS.flatMap((plant, i) => (plant.patch === patch ? [i] : []))),
     [],
   );
-  const drawn = useRef<Stage[]>(FLOWER_PATCHES.map(() => -1));
+  const drawn = useRef<Stage[]>(PATCHES.map(() => -1));
   const write = useMemo(() => {
     const matrix = new Matrix4();
     const turn = new Quaternion();
@@ -210,7 +228,7 @@ export function FieldPlants() {
     [materials, shapes],
   );
   useFrame(({ clock }) => {
-    FLOWER_PATCHES.forEach((patch, g) => {
+    PATCHES.forEach((patch, g) => {
       const stage = stageOf(patch, clock.elapsedTime);
       if (stage === drawn.current[g]) return;
       drawn.current[g] = stage;

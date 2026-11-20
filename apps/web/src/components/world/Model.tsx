@@ -12,8 +12,8 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import { DRACO, UP } from "./Model.constants";
-import { useRoomLight, withRoomLight } from "./roomLight";
+import { DRACO, UP } from "./constants/Model.constants";
+import { useRoomLight, withRoomLight } from "./utils/roomLight";
 
 type Props = {
   src: string;

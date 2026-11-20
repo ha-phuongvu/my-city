@@ -6,7 +6,7 @@ import { LedSign } from "./models/LedSign";
 import { MusicStand } from "./models/MusicStand";
 import { NameSign } from "./models/NameSign";
 import { Scroll } from "./models/Scroll";
-import { signsAt } from "./signLayout";
+import { signsAt } from "./utils/signLayout";
 
 /**
  * The cities' name signs on their lawns, and the barricade at the future-city plot, as on the
