@@ -1,4 +1,5 @@
 import { Matrix4, Vector3 } from "three";
+import { SignKind } from "../constants/signLayout.constants";
 
 // The cities' name signs and the future-city plot's barricade, where the prototype's map puts them
 // (buildWorld: each city's sign SIGN_AT, grown 1.35 times with its city (CITY_GROW), from its middle,
@@ -66,37 +67,43 @@ const place = (
 ) => new Matrix4().copy(TO_SITE).multiply(cardToMap(card, x, y, z, turn, width, height));
 
 export type SignAt =
-  | { kind: "scroll"; name: string; sub: string; place: Matrix4; inkPlace: Matrix4 }
-  | { kind: "stand" | "led" | "board"; name: string; sub: string; later: boolean; place: Matrix4 }
-  | { kind: "barricade"; name: string; sub: string; place: Matrix4 };
+  | { kind: SignKind.Scroll; name: string; sub: string; place: Matrix4; inkPlace: Matrix4 }
+  | {
+      kind: SignKind.Stand | SignKind.Led | SignKind.Board;
+      name: string;
+      sub: string;
+      later: boolean;
+      place: Matrix4;
+    }
+  | { kind: SignKind.Barricade; name: string; sub: string; place: Matrix4 };
 
 /** Every sign on the map, where the prototype puts it (its map's x and y, its turn, width and height) */
 export function signsAt(): SignAt[] {
   return [
     // Story City's scroll, and the inkwell on the lawn below its quill, the inkwell's own size
     {
-      kind: "scroll",
+      kind: SignKind.Scroll,
       name: "Story City",
       sub: "Open now",
       place: place(CARDS.scroll, -10.0886, -6.8431, G, -22, 2.0, 2.7),
       inkPlace: place(CARDS.inkwell, -9.028, -7.833, G + 0.035, 0),
     },
     {
-      kind: "stand",
+      kind: SignKind.Stand,
       name: "Music City",
       sub: "Open now",
       later: false,
       place: place(CARDS.stand, -12.3805, -31.0163, G, 22),
     },
     {
-      kind: "board",
+      kind: SignKind.Board,
       name: "Movie City",
       sub: "Opens later",
       later: true,
       place: place(CARDS.board, 27.3892, 0.6094, G, -22, 1.8, 2.2),
     },
     {
-      kind: "led",
+      kind: SignKind.Led,
       name: "Game City",
       sub: "Opens later",
       later: true,
@@ -104,7 +111,7 @@ export function signsAt(): SignAt[] {
     },
     // (Comic City's name is on its theatre's title card, so it has no sign)
     {
-      kind: "barricade",
+      kind: SignKind.Barricade,
       name: "Future city",
       sub: "Under construction",
       place: place(CARDS.barricade, 14.066, 13.6489, G + 0.02, -10),

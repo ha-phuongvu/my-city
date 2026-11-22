@@ -7,7 +7,8 @@ import {
   Vector2,
   type WebGLProgramParametersWithUniforms,
 } from "three";
-import { GROUND_Y, PAPER, WAVE } from "../constants/wave.constants";
+import { GROUND_Y, PAPER, SNOW, WAVE } from "../constants/wave.constants";
+import { isWinter } from "./season";
 
 // The opening's wave, as the prototype's: until it comes, the world lies flat on the paper in the
 // paper's colour; as a ring `waveR` out from `waveC` passes over a spot, what stands there grows up
@@ -16,10 +17,19 @@ import { GROUND_Y, PAPER, WAVE } from "../constants/wave.constants";
 //
 // Every material in the world takes it (waveIn): what it draws is laid flat as it's put on screen,
 // and painted over just before the haze. The grass works it out in its own shaders (Grass.tsx).
+//
+// In winter the same patch lays snow on what it draws, by how far each spot faces up, before the wave
+// paints it; except on what's marked `noSnow` (the ground, the water, the floating symbols, and the
+// plants, which carry their snow in their own colours).
 
 // the colours as they land on screen (taken as they are, not turned), since the paint goes on after
 // the colours are turned for the screen
-const onScreen = (hex: string) => new Color().setHex(Number.parseInt(hex.slice(1), 16), LinearSRGBColorSpace);
+const onScreen = (hex: string) =>
+  new Color().setHex(Number.parseInt(hex.slice(1), 16), LinearSRGBColorSpace);
+const SNOW_UNIFORMS = {
+  snowLight: { value: onScreen(SNOW.light) },
+  snowShade: { value: onScreen(SNOW.shade) },
+};
 
 export const WAVE_UNIFORMS = {
   waveC: { value: new Vector2() },
@@ -69,32 +79,67 @@ const FLATTEN = /* glsl */ `
 `;
 const PROJECTED = "gl_Position = projectionMatrix * mvPosition;";
 
+// the way up the spot faces, in the world (none where the model has no normals)
+const SNOW_VERTEX = /* glsl */ `
+  {
+    #ifdef USE_INSTANCING
+      vec3 snowN = mat3(modelMatrix) * mat3(instanceMatrix) * normal;
+    #else
+      vec3 snowN = mat3(modelMatrix) * normal;
+    #endif
+    vSnowUp = dot(snowN, snowN) > 0.0 ? normalize(snowN).y : 0.0;
+  }
+`;
+const SNOW_GLSL = /* glsl */ `
+  uniform vec3 snowLight;
+  uniform vec3 snowShade;
+  varying float vSnowUp;
+`;
+const SNOW_FRAGMENT = /* glsl */ `
+  {
+    float up = gl_FrontFacing ? vSnowUp : -vSnowUp;
+    float f = clamp((up - ${SNOW.from.toFixed(3)}) / ${(SNOW.to - SNOW.from).toFixed(3)}, 0.0, 1.0);
+    vec3 snow = mix(snowShade, snowLight, clamp(up, 0.0, 1.0));
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, snow, f * f * (3.0 - 2.0 * f) * ${SNOW.most.toFixed(3)});
+  }
+`;
+
 const waved = new WeakSet<Material>();
+// the materials snow doesn't lie on
+const bare = new WeakSet<Material>();
 
 /** Lets the wave lay a material flat and paint it (once; it keeps any shader changes it has already) */
 export function waveIn<M extends Material>(material: M): M {
   if (waved.has(material)) return material;
   waved.add(material);
   const before = material.onBeforeCompile;
-  const ownKey = Object.hasOwn(material, "customProgramCacheKey") ? material.customProgramCacheKey : null;
+  const ownKey = Object.hasOwn(material, "customProgramCacheKey")
+    ? material.customProgramCacheKey
+    : null;
   const hadBefore = before !== Material.prototype.onBeforeCompile;
+  const snowy = () => isWinter() && !bare.has(material);
   material.onBeforeCompile = function (shader: WebGLProgramParametersWithUniforms, renderer) {
     if (hadBefore) before.call(this, shader, renderer);
     Object.assign(shader.uniforms, WAVE_UNIFORMS);
+    const snow = snowy();
+    if (snow) Object.assign(shader.uniforms, SNOW_UNIFORMS);
+    const after = `${FLATTEN}${snow ? SNOW_VERTEX : ""}`;
     let vertex = shader.vertexShader;
     if (vertex.includes("#include <project_vertex>"))
-      vertex = vertex.replace("#include <project_vertex>", `#include <project_vertex>\n${FLATTEN}`);
-    else if (vertex.includes(PROJECTED)) vertex = vertex.replace(PROJECTED, `${PROJECTED}\n${FLATTEN}`);
+      vertex = vertex.replace("#include <project_vertex>", `#include <project_vertex>\n${after}`);
+    else if (vertex.includes(PROJECTED))
+      vertex = vertex.replace(PROJECTED, `${PROJECTED}\n${after}`);
     else return;
-    shader.vertexShader = `${WAVE_GLSL}\n${vertex}`;
+    const head = `${WAVE_GLSL}\n${snow ? SNOW_GLSL : ""}`;
+    shader.vertexShader = `${head}\n${vertex}`;
     if (shader.fragmentShader.includes("#include <fog_fragment>"))
-      shader.fragmentShader = `${WAVE_GLSL}\n${shader.fragmentShader.replace(
+      shader.fragmentShader = `${head}\n${shader.fragmentShader.replace(
         "#include <fog_fragment>",
-        "gl_FragColor.rgb = wavePaint(gl_FragColor.rgb, vWaveGround);\n#include <fog_fragment>",
+        `${snow ? SNOW_FRAGMENT : ""}gl_FragColor.rgb = wavePaint(gl_FragColor.rgb, vWaveGround);\n#include <fog_fragment>`,
       )}`;
   };
   material.customProgramCacheKey = () =>
-    `${ownKey ? ownKey.call(material) : hadBefore ? before.toString() : ""}|wave`;
+    `${ownKey ? ownKey.call(material) : hadBefore ? before.toString() : ""}|wave${snowy() ? "|snow" : ""}`;
   material.needsUpdate = true;
   return material;
 }
@@ -112,20 +157,27 @@ const lent = new WeakSet<Object3D>();
 
 /**
  * Gives the wave to everything under `root` it hasn't got to yet (whatever has come in since), except
- * what's marked `noWave` and what's under it: the sky and the opening's own letters and button
+ * what's marked `noWave` and what's under it: the sky and the opening's own letters and button. In
+ * winter, what's marked `noSnow` and what's under it takes the wave without the snow.
  */
-export function waveAll(object: Object3D) {
+export function waveAll(object: Object3D, noSnow = false) {
   if (object.userData.noWave) return;
-  const { material, customDepthMaterial } = object as Object3D & { material?: Material | Material[] };
+  const keepBare = noSnow || !!object.userData.noSnow;
+  const { material, customDepthMaterial } = object as Object3D & {
+    material?: Material | Material[];
+  };
   if (material) {
-    for (const m of Array.isArray(material) ? material : [material]) waveIn(m);
+    for (const m of Array.isArray(material) ? material : [material]) {
+      if (keepBare && !waved.has(m)) bare.add(m);
+      waveIn(m);
+    }
     if (customDepthMaterial) waveIn(customDepthMaterial);
     else if (object.castShadow) {
       object.customDepthMaterial = flatShadow;
       lent.add(object);
     }
   }
-  for (const child of object.children) waveAll(child);
+  for (const child of object.children) waveAll(child, keepBare);
 }
 
 /** The world is up: the wave goes, and the shadows go back to the sun's own depth material */

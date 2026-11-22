@@ -14,7 +14,12 @@ import {
   SEED,
   WOODS,
 } from "../constants/outskirts.constants";
-import { type AppleTreePlacement, TREES, type TreePlacement } from "../constants/treeLayout.constants";
+import {
+  type AppleTreePlacement,
+  TREES,
+  type TreePlacement,
+} from "../constants/treeLayout.constants";
+import { isWinter } from "./season";
 
 // The land past the prototype's map: open meadow running on to the haze, its long grass and wild
 // flowers, patches of field flowers, and woods of round trees and pines in groves with big bushes
@@ -165,7 +170,20 @@ function growWoods() {
         );
     }
   }
-  return { round, pine, bush, apple };
+  // (in winter the round trees where pines would nearly grow are pines, as big as the woods' pines)
+  if (!isWinter()) return { round, pine, bush, apple };
+  const [r0, r1] = ROUND_SIZE;
+  const [p0, p1] = PINE_SIZE;
+  const bare = round.filter((t) => {
+    if (pines(t.x, t.z) <= WOODS.winter) return true;
+    pine.push({
+      x: t.x,
+      z: t.z,
+      s: +(p0 + ((p1 - p0) * ((t.s ?? r0) - r0)) / (r1 - r0)).toFixed(3),
+    });
+    return false;
+  });
+  return { round: bare, pine, bush, apple };
 }
 
 export const OUTSKIRTS_TREES = growWoods();

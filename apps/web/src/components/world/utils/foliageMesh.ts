@@ -5,15 +5,22 @@ import {
   APPLE_SIDES,
   APPLE_SKIN,
   APPLE_STALK,
+  BARE,
+  BARE_GARDEN,
+  CrownShape,
   FADE,
   GROUND,
+  IN_SEASON,
   P,
   SHADE,
+  SNOW,
   SUN,
   VIEW,
+  WINTER_LEAF,
 } from "../constants/foliageMesh.constants";
 import type { RGB, V3 } from "../constants/foliageMesh.constants";
 import { SWAY } from "../constants/wind.constants";
+import { isWinter } from "./season";
 
 // The prototype's trees, bushes and hydrangeas, rebuilt in 3D from its own drawing code (leafMass,
 // tree, roundTree, pine, leafyShrub and hydrangea in the "My City Map and Models" page): a darker
@@ -26,6 +33,10 @@ import { SWAY } from "../constants/wind.constants";
 // end. Each face is coloured with the prototype's own sun-and-shade recipe, so the plants look as
 // they do on its map. Each corner also carries its plant's foot and how far it sways (the "sway"
 // attribute), so the whole mesh can lean in the wind plant by plant (utils/wind.ts).
+//
+// In winter, as on the winter prototype, the round, apple and garden trees are bare (bareTree), one
+// round tree in three on the map is a pine instead, the greens are winter's, and snow lies on every
+// plant, thicker where it faces up (snowOn).
 
 // ---------- vectors ----------
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -56,6 +67,17 @@ const mixc = (a: RGB, b: RGB, t: number): RGB => a.map((v, i) => v + (b[i] - v) 
 const tint = (a: string, b: string, k: number) => rgbHex(mixc(hexRgb(a), hexRgb(b), k));
 const dk = (c: string, k = 0.3) => rgbHex(mixc(hexRgb(c), [40, 30, 34], k));
 
+const SNOW_LIGHT = hexRgb(SNOW.light);
+const SNOW_SHADE = hexRgb(SNOW.shade);
+
+/** Snow on a corner (colour c, facing n) of a plant: none on its sides, thicker the flatter it faces up */
+function snowOn(c: RGB, n: V3): RGB {
+  const up = n[2];
+  const f = Math.min(1, Math.max(0, (up - SNOW.from) / (SNOW.to - SNOW.from)));
+  const snow = mixc(SNOW_SHADE, SNOW_LIGHT, Math.min(1, Math.max(0, up)));
+  return mixc(c, snow, f * f * (3 - 2 * f) * SNOW.most);
+}
+
 /** Warm sun on tops, cool slate-blue shade on the sides (the prototype's shadeRgb) */
 function shade(hex: string, n: V3): RGB {
   const c = hexRgb(hex);
@@ -82,13 +104,16 @@ class Mesh {
   colors: number[] = [];
   sway: number[] = [];
   fade = 0;
+  /** whether snow lies on what's being drawn (in winter, on every plant) */
+  snowy = false;
   /** the foot of the plant being drawn (three.js x and z) and how far it sways, in degrees */
   foot: V3 = [0, 0, 0];
   private color = new Color();
 
   /** A flat polygon facing n, filled from its middle */
   face(pts: V3[], n: V3, hex: string) {
-    const rgb = mixc(shade(hex, n), FADE, this.fade);
+    let rgb = mixc(shade(hex, n), FADE, this.fade);
+    if (this.snowy) rgb = snowOn(rgb, n);
     this.color.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, SRGBColorSpace);
     const mid = mul(pts.reduce(add, [0, 0, 0] as V3), 1 / pts.length);
     for (let i = 0; i < pts.length; i++) {
@@ -103,7 +128,8 @@ class Mesh {
   /** A polygon shaded smoothly: each corner its own way out and colour, its middle their average */
   smoothFace(pts: V3[], ns: V3[], hexes: string[]) {
     const tone = (n: V3, hex: string) => {
-      const rgb = mixc(shade(hex, n), FADE, this.fade);
+      let rgb = mixc(shade(hex, n), FADE, this.fade);
+      if (this.snowy) rgb = snowOn(rgb, n);
       return new Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, SRGBColorSpace);
     };
     const tones = pts.map((_, i) => tone(ns[i], hexes[i]));
@@ -288,25 +314,25 @@ type LeafOptions = {
 
 /**
  * A mass of small leaves over a darker core, lying on its surface like scales with their tips out,
- * so the edge is fluffy. "ball" is an ellipsoid with half-sizes ax round c0, "box" a clipped square
- * with rounded corners, "cone" a pine tier.
+ * so the edge is fluffy. A Ball is an ellipsoid with half-sizes ax round c0, a Box a clipped square
+ * with rounded corners, a Cone a pine tier.
  */
-function leafMass(
-  m: Mesh,
-  c0: V3,
-  ax: V3,
-  shape: "ball" | "box" | "cone",
-  color: string,
-  o: LeafOptions = {},
-) {
-  const box = shape === "box";
-  const cone = shape === "cone" ? o.cone : undefined;
+function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: LeafOptions = {}) {
+  const box = shape === CrownShape.Box;
+  const cone = shape === CrownShape.Cone ? o.cone : undefined;
   const r = cone ? cone[0] : Math.max(ax[0], ax[1]);
   const floor = o.floor ?? -Infinity;
   const rnd = rng(
     (Math.round(c0[0] * 977 + c0[1] * 331 + c0[2] * 71 + r * 1000) * 2654435761) >>> 0,
   );
-  const leaf = o.needles ? tint(color, "#3f8a3e", 0.3) : tint(color, "#9fd23a", 0.55);
+  // (in the winter greens the leaves are a cool sage, frosted at their lightest)
+  const winter = isWinter() && (color === P.leaf || color === P.leafDeep || color === P.leafLight);
+  const W = WINTER_LEAF;
+  const leaf = o.needles
+    ? tint(color, "#3f8a3e", 0.3)
+    : winter
+      ? tint(color, W.toward, W.by)
+      : tint(color, "#9fd23a", 0.55);
   const core = dk(leaf, 0.2);
   const tones = o.needles
     ? [
@@ -316,14 +342,23 @@ function leafMass(
         tint(leaf, "#5fa047", 0.4),
         tint(leaf, "#9cc95a", 0.2),
       ]
-    : [
-        tint(leaf, "#e4f57a", 0.35),
-        leaf,
-        dk(leaf, 0.08),
-        tint(leaf, "#b8e04a", 0.5),
-        tint(leaf, "#e4f57a", 0.15),
-        tint(leaf, "#7fbf34", 0.4),
-      ];
+    : winter
+      ? [
+          tint(leaf, W.frost, 0.3),
+          leaf,
+          dk(leaf, 0.08),
+          tint(leaf, W.sage, 0.45),
+          tint(leaf, W.frost, 0.12),
+          tint(leaf, W.deep, 0.4),
+        ]
+      : [
+          tint(leaf, "#e4f57a", 0.35),
+          leaf,
+          dk(leaf, 0.08),
+          tint(leaf, "#b8e04a", 0.5),
+          tint(leaf, "#e4f57a", 0.15),
+          tint(leaf, "#7fbf34", 0.4),
+        ];
 
   // the shaded inside, just under the leaves, shows through the gaps between them
   if (cone) {
@@ -485,20 +520,27 @@ function tree(m: Mesh, cx: number, cy: number, z: number, s = 1) {
     [-0.26, 0.05, 2.08, 0.38, P.leafLight],
   ];
   for (const [dx, dy, dz, r, c] of lobes) {
-    leafMass(m, [cx + dx * s, cy + dy * s, z + dz * s], [r * s, r * s, r * s * 0.92], "ball", c, {
-      N: 240,
-      L: 0.27,
-      back: -0.12,
-      lift: 0.12,
-      coreK: 0.97,
-    });
+    leafMass(
+      m,
+      [cx + dx * s, cy + dy * s, z + dz * s],
+      [r * s, r * s, r * s * 0.92],
+      CrownShape.Ball,
+      c,
+      {
+        N: 240,
+        L: 0.27,
+        back: -0.12,
+        lift: 0.12,
+        coreK: 0.97,
+      },
+    );
   }
 }
 
 function roundTree(m: Mesh, x: number, y: number, z: number, s = 1, c = P.leaf) {
   frustum(m, x, y, z, 0.12 * s, z + 0.75 * s, 0.08 * s, P.trunk, 7);
   const leafy = { back: -0.12, lift: 0.12, coreK: 0.97 };
-  leafMass(m, [x, y, z + 1.08 * s], [0.56 * s, 0.56 * s, 0.53 * s], "ball", c, {
+  leafMass(m, [x, y, z + 1.08 * s], [0.56 * s, 0.56 * s, 0.53 * s], CrownShape.Ball, c, {
     N: 340,
     L: 0.24,
     ...leafy,
@@ -507,7 +549,7 @@ function roundTree(m: Mesh, x: number, y: number, z: number, s = 1, c = P.leaf) 
     m,
     [x + 0.14 * s, y + 0.12 * s, z + 1.42 * s],
     [0.32 * s, 0.32 * s, 0.3 * s],
-    "ball",
+    CrownShape.Ball,
     P.leafLight,
     { N: 150, L: 0.3, ...leafy },
   );
@@ -517,7 +559,7 @@ function pine(m: Mesh, x: number, y: number, z: number, s = 1) {
   frustum(m, x, y, z, 0.09 * s, z + 0.45 * s, 0.07 * s, P.trunk, 6);
   // three tiers of short needles, each a cone of small dark leaves
   const tier = (z0: number, r0: number, z1: number, r1: number, c: string, N: number) =>
-    leafMass(m, [x, y, 0], [0, 0, 0], "cone", c, {
+    leafMass(m, [x, y, 0], [0, 0, 0], CrownShape.Cone, c, {
       cone: [r0, r1, z0, z1],
       N,
       L: 0.36,
@@ -534,11 +576,11 @@ function leafyShrub(
   cy: number,
   z: number,
   r: number,
-  shape: "ball" | "box",
+  shape: CrownShape.Ball | CrownShape.Box,
   color: string,
   flowers?: [string, string],
 ) {
-  const box = shape === "box";
+  const box = shape === CrownShape.Box;
   const ax: V3 = box ? [r * 1.05, r * 0.92, r * 0.72] : [r * 0.9, r * 0.9, r * 0.8];
   leafMass(m, [cx, cy, z + ax[2] * (box ? 1 : 0.94)], ax, shape, color, {
     N: Math.round((box ? 520 : 420) * (r < 0.3 ? 0.75 : 1)),
@@ -548,14 +590,80 @@ function leafyShrub(
   });
 }
 
+/** A round tapered branch from a to b (r0 thick at a, r1 at b), n sided, its sides facing up white with snow */
+function limb(m: Mesh, a: V3, b: V3, r0: number, r1: number, color: string, n = 6) {
+  const d = unit(add(b, mul(a, -1)));
+  const e1 = unit(Math.abs(d[2]) < 0.95 ? cross(d, [0, 0, 1]) : cross(d, [1, 0, 0]));
+  const e2 = cross(d, e1);
+  const out = (t: number) => add(mul(e1, Math.cos(t)), mul(e2, Math.sin(t)));
+  for (let i = 0; i < n; i++) {
+    const [o0, o1] = [out((i / n) * Math.PI * 2), out(((i + 1) / n) * Math.PI * 2)];
+    const c = unit(add(o0, o1))[2] > BARE.snowy ? BARE.snow : color;
+    m.smoothFace(
+      [add(a, mul(o0, r0)), add(a, mul(o1, r0)), add(b, mul(o1, r1)), add(b, mul(o0, r1))],
+      [o0, o1, o1, o0],
+      [c, c, c, c],
+    );
+  }
+}
+
+/**
+ * A tree bare for the winter (the winter prototype's bareTree), filling about the room of the leafy
+ * tree it stands in for; `wide` is the apple tree's, with a shorter trunk and lower, wider limbs
+ */
+function bareTree(m: Mesh, x: number, y: number, z: number, s = 1, wide = false) {
+  const B = BARE;
+  const r = rng((Math.round(x * 97 + y * 53) * 2654435761) >>> 0);
+  const top = z + (wide ? 0.6 : 0.72) * s;
+  frustum(m, x, y, z, 0.12 * s, top, 0.085 * s, B.bark, 12);
+  // a branch from a along dir, len long and r0 thick, and the branches out of its end (depth 0 a
+  // limb, 1 a branch, 2 a twig)
+  const grow = (a: V3, dir: V3, len: number, r0: number, depth: number) => {
+    const b = add(a, mul(dir, len));
+    const r1 = r0 * 0.6;
+    limb(m, a, b, r0, r1, depth ? B.twig : B.bark, depth > 1 ? 5 : 6);
+    if (depth >= 2) return;
+    const e1 = unit(Math.abs(dir[2]) < 0.95 ? cross(dir, [0, 0, 1]) : cross(dir, [1, 0, 0]));
+    const e2 = cross(dir, e1);
+    const k = B.split[depth];
+    const turn0 = r() * Math.PI * 2;
+    for (let i = 0; i < k; i++) {
+      const turn = turn0 + (i / k) * Math.PI * 2 + (r() - 0.5) * 0.6;
+      const open = B.open[0] + r() * B.open[1];
+      const side = add(mul(e1, Math.cos(turn)), mul(e2, Math.sin(turn)));
+      const next = unit(add(add(mul(dir, Math.cos(open)), mul(side, Math.sin(open))), [0, 0, 0.2]));
+      grow(b, next, len * (B.shorter[0] + r() * B.shorter[1]), r1, depth + 1);
+    }
+    // (the snow lying in a limb's fork)
+    if (depth === 0) blob(m, b[0], b[1], b[2] + r1 * 0.9, r1 * 2.4, B.snow, 8, 0.2, 0.55);
+  };
+  const n = B.limbs + (wide || r() < 0.5 ? 1 : 0);
+  const a0 = r() * Math.PI * 2;
+  const reach = B.reach[wide ? 1 : 0];
+  const len = B.length[wide ? 1 : 0] * s;
+  for (let i = 0; i < n; i++) {
+    const az = a0 + (i / n) * Math.PI * 2 + (r() - 0.5) * 0.5;
+    const el = reach + (r() - 0.5) * 0.25;
+    const dir: V3 = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
+    grow([x, y, top - 0.05 * s], dir, len * (0.9 + r() * 0.2), B.thick * s, 0);
+  }
+  grow(
+    [x, y, top - 0.02 * s],
+    unit([r() * 0.2 - 0.1, r() * 0.2 - 0.1, 1]),
+    len * 1.05,
+    B.thick * 1.05 * s,
+    0,
+  );
+}
+
 /**
  * An apple tree's trunk and crown: a round tree with a shorter, sturdier trunk and a wider, lower
- * crown. Its apples are drawn on their own (models/AppleTrees.tsx), as they can drop.
+ * crown. Its apples are drawn on their own (environment/AppleTrees.tsx), as they can drop.
  */
 function appleTree(m: Mesh, x: number, y: number, z: number, s: number) {
   frustum(m, x, y, z, 0.14 * s, z + 0.66 * s, 0.09 * s, P.trunk, 7);
   const leafy = { back: -0.12, lift: 0.12, coreK: 0.97 };
-  leafMass(m, [x, y, z + 0.98 * s], [0.66 * s, 0.66 * s, 0.5 * s], "ball", P.leaf, {
+  leafMass(m, [x, y, z + 0.98 * s], [0.66 * s, 0.66 * s, 0.5 * s], CrownShape.Ball, P.leaf, {
     N: 380,
     L: 0.22,
     ...leafy,
@@ -564,7 +672,7 @@ function appleTree(m: Mesh, x: number, y: number, z: number, s: number) {
     m,
     [x - 0.1 * s, y + 0.16 * s, z + 1.3 * s],
     [0.36 * s, 0.36 * s, 0.28 * s],
-    "ball",
+    CrownShape.Ball,
     P.leafLight,
     { N: 160, L: 0.28, ...leafy },
   );
@@ -667,7 +775,7 @@ function hydrangea(m: Mesh, cx: number, cy: number, z: number, r: number, color:
     cy,
     z,
     r,
-    color === P.hydBlue ? "box" : "ball",
+    color === P.hydBlue ? CrownShape.Box : CrownShape.Ball,
     tint(P.leaf, P.leafLight, 0.6),
     [color, centre],
   );
@@ -677,6 +785,8 @@ function hydrangea(m: Mesh, cx: number, cy: number, z: number, r: number, color:
 export function buildFoliage(trees: Trees) {
   const m = new Mesh();
   // three.js (x, y up, z) is the map's (x, z, y up), with the map's ground at z 0.15
+  const winter = isWinter();
+  m.snowy = winter;
   const place = (
     t: TreePlacement,
     sway: number,
@@ -686,12 +796,21 @@ export function buildFoliage(trees: Trees) {
     m.foot = [t.x, t.z, sway];
     draw(t.x, t.z, (t.y ?? 0) + GROUND);
   };
-  for (const t of trees.leafy) place(t, SWAY.leafy, (x, y, z) => tree(m, x, y, z, t.s));
+  // (the colours the map gives its plants are summer's)
+  const hue = (c: string | undefined) => (c ? (IN_SEASON[c] ?? c) : c);
+  for (const t of trees.leafy)
+    place(t, SWAY.leafy, (x, y, z) =>
+      winter ? bareTree(m, x, y, z, (t.s ?? 1) * BARE_GARDEN) : tree(m, x, y, z, t.s),
+    );
   for (const t of trees.round)
-    place(t, SWAY.round, (x, y, z) => roundTree(m, x, y, z, t.s, t.color));
-  // an apple tree's two fallen apples lie at its foot, so they barely lean
+    place(t, SWAY.round, (x, y, z) =>
+      winter ? bareTree(m, x, y, z, t.s) : roundTree(m, x, y, z, t.s, t.color),
+    );
+  // an apple tree's two fallen apples lie at its foot, so they barely lean (in winter it's bare, and
+  // its apples are gone)
   for (const t of trees.apple)
     place(t, SWAY.apple, (x, y, z) => {
+      if (winter) return bareTree(m, x, y, z, t.s, true);
       appleTree(m, x, y, z, t.s);
       for (const [ax, ay, az, color] of t.fallen) apple(m, ax, az, ay + GROUND, 0.065 * t.s, color);
     });
@@ -699,9 +818,11 @@ export function buildFoliage(trees: Trees) {
   // the bushes in the gardens stand on the lawns and sway a little less than the big ones in the grass
   for (const t of trees.bush)
     place(t, t.y ? SWAY.garden : SWAY.bush, (x, y, z) =>
-      leafyShrub(m, x, y, z, t.s ?? 0.34, "ball", t.color ?? P.leafLight),
+      leafyShrub(m, x, y, z, t.s ?? 0.34, CrownShape.Ball, hue(t.color) ?? P.leafLight),
     );
   for (const t of trees.hydrangea)
-    place(t, SWAY.garden, (x, y, z) => hydrangea(m, x, y, z, t.s ?? 0.42, t.color ?? P.hydBlue));
+    place(t, SWAY.garden, (x, y, z) =>
+      hydrangea(m, x, y, z, t.s ?? 0.42, hue(t.color) ?? P.hydBlue),
+    );
   return m.geometry();
 }

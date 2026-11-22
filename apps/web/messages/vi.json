@@ -8,7 +8,23 @@
     "opening": {
       "enter": "Vào thế giới của tôi",
       "building": "Chào mừng đến thế giới của tôi. Đang dựng thế giới…",
+      "buildingWinter": "Giáng sinh vui vẻ, chào mừng đến thế giới của tôi. Đang dựng thế giới…",
       "ready": "Thế giới đã sẵn sàng. Rung chuông Vào thế giới của tôi để bước vào."
+    },
+    "calendar": {
+      "open": "Hôm nay là {date}. Mở lịch tháng",
+      "previous": "Tháng trước",
+      "next": "Tháng sau",
+      "today": "Hôm nay"
+    },
+    "player": {
+      "label": "Máy nghe nhạc",
+      "playing": "Máy nghe nhạc, đang phát",
+      "play": "Phát",
+      "pause": "Tạm dừng",
+      "previous": "Bài trước",
+      "next": "Bài sau",
+      "empty": "Chưa có bài hát"
     }
   }
 }

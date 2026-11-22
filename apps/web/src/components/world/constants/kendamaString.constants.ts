@@ -1,19 +1,25 @@
 // The fixed numbers kendamaString.ts works with: the string's length, where it's tied and the wood it has to miss.
 
+// the line a turned part of the kendama runs along
+export enum Axis {
+  X = "x",
+  Z = "z",
+}
+
 export const LENGTH = 1.75;
 export const CROSS = { z: 1.9, r: 0.19 };
 /** Points along the string, knot to ball */
 export const POINTS = 17;
 // the wood it has to miss: [axis, from, radius, to, radius] for the handle, the cross-piece and its
 // cups, and the spike (mKendama's turned parts)
-export const WOOD: [axis: "z" | "x", a0: number, r0: number, a1: number, r1: number][] = [
-  ["z", 0, 0.25, 0.22, 0.15],
-  ["z", 0.22, 0.15, 1.5, 0.165],
-  ["z", 1.5, 0.165, 1.72, 0.2],
-  ["x", 0.48, 0.19, 0.68, 0.28],
-  ["x", -0.48, 0.19, 0.48, 0.19],
-  ["x", -0.72, 0.34, -0.48, 0.19],
-  ["z", 2.08, 0.13, 2.75, 0.02],
+export const WOOD: [axis: Axis, a0: number, r0: number, a1: number, r1: number][] = [
+  [Axis.Z, 0, 0.25, 0.22, 0.15],
+  [Axis.Z, 0.22, 0.15, 1.5, 0.165],
+  [Axis.Z, 1.5, 0.165, 1.72, 0.2],
+  [Axis.X, 0.48, 0.19, 0.68, 0.28],
+  [Axis.X, -0.48, 0.19, 0.48, 0.19],
+  [Axis.X, -0.72, 0.34, -0.48, 0.19],
+  [Axis.Z, 2.08, 0.13, 2.75, 0.02],
 ];
 // how far from the wood the string keeps, all along it: `most`, but less near the knot (none for the
 // first `from` of it, then `near`, more by `ramp` for each unit further), so it leaves the wood at a

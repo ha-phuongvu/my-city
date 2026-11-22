@@ -8,7 +8,23 @@
     "opening": {
       "enter": "Enter my world",
       "building": "Welcome to my world. Building the world…",
+      "buildingWinter": "Merry Christmas, and welcome to my world. Building the world…",
       "ready": "The world is ready. Ring the bell, Enter my world, to come in."
+    },
+    "calendar": {
+      "open": "Today is {date}. Open the month",
+      "previous": "Previous month",
+      "next": "Next month",
+      "today": "Today"
+    },
+    "player": {
+      "label": "Music player",
+      "playing": "Music player, playing",
+      "play": "Play",
+      "pause": "Pause",
+      "previous": "Previous song",
+      "next": "Next song",
+      "empty": "No songs yet"
     }
   }
 }

@@ -1,5 +1,13 @@
 import { Vector3 } from "three";
-import { CLEAR, CROSS, KNOT_DROP, LENGTH, POINTS, WOOD } from "../constants/kendamaString.constants";
+import {
+  Axis,
+  CLEAR,
+  CROSS,
+  KNOT_DROP,
+  LENGTH,
+  POINTS,
+  WOOD,
+} from "../constants/kendamaString.constants";
 
 // The kendama's string, worked out as the prototype's mKendama does, in the toy's own frame (x across,
 // y forward, so behind the toy's plane is -y, z up). It is tied on the cross-piece, 0.19 out from its
@@ -13,8 +21,8 @@ import { CLEAR, CROSS, KNOT_DROP, LENGTH, POINTS, WOOD } from "../constants/kend
 function gap(p: Vector3): number {
   let best = Infinity;
   for (const [axis, a0, r0, a1, r1] of WOOD) {
-    const a = axis === "z" ? p.z : p.x;
-    const r = axis === "z" ? Math.hypot(p.x, p.y) : Math.hypot(p.y, p.z - CROSS.z);
+    const a = axis === Axis.Z ? p.z : p.x;
+    const r = axis === Axis.Z ? Math.hypot(p.x, p.y) : Math.hypot(p.y, p.z - CROSS.z);
     const c = Math.min(a1, Math.max(a0, a));
     const R = r0 + ((r1 - r0) * (c - a0)) / (a1 - a0);
     best = Math.min(best, a === c ? r - R : Math.hypot(a - c, Math.max(0, r - R)));
@@ -124,13 +132,19 @@ function clearance(pts: Vector3[]): number {
   const half = new Vector3();
   for (let k = 1; k < pts.length; k++) {
     const l = pts[k].distanceTo(pts[k - 1]);
-    half.copy(pts[k]).add(pts[k - 1]).multiplyScalar(0.5);
+    half
+      .copy(pts[k])
+      .add(pts[k - 1])
+      .multiplyScalar(0.5);
     for (const [p, s] of [
       [half, along + l / 2],
       [pts[k], along + l],
     ] as const)
       if (s > CLEAR.from)
-        least = Math.min(least, gap(p) - Math.min(CLEAR.most, CLEAR.near + CLEAR.ramp * (s - CLEAR.from)));
+        least = Math.min(
+          least,
+          gap(p) - Math.min(CLEAR.most, CLEAR.near + CLEAR.ramp * (s - CLEAR.from)),
+        );
     along += l;
   }
   return least;

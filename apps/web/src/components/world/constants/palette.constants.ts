@@ -1,12 +1,16 @@
 // Colors and light from the "My City Map and Models" prototype (Color palettes tab), so the 3D scene
 // matches the reference pictures the models are made from.
 
+import { bySeason } from "../utils/season";
+
 // Howl's Moving Castle: the world map, the countryside, the city symbols and the fountain
-export const HOWL = {
+const HOWL_SUMMER = {
   light: {
     sun: "#fcdfa8",
     shade: "#33445f",
     sky: { top: "#4b9fc0", mid: "#a6d3dc", low: "#e6eee2" },
+    // the light from below, the ground's
+    ground: "#8cb25e",
   },
   grass: "#8cb25e",
   meadow: "#a2c070",
@@ -18,7 +22,30 @@ export const HOWL = {
   waterLight: "#c4e6ee",
   wood: "#9a6548",
   roof: "#b0463f",
-} as const;
+};
+
+// the same in winter (the winter prototype's XMAS): snow on the meadow and the lawns, trodden snow on
+// the lanes, dusted stones, cold dark water pale with ice, a pale sky and a low warm sun
+const HOWL_WINTER: typeof HOWL_SUMMER = {
+  light: {
+    sun: "#fff0d9",
+    shade: "#38486a",
+    sky: { top: "#86a6c6", mid: "#cbd9e5", low: "#eef1f4" },
+    ground: "#cdd8e2",
+  },
+  grass: "#e6edf3",
+  meadow: "#edf2f6",
+  road: "#d6c8b1",
+  paving: "#dcd6cb",
+  stone: "#dcd8d0",
+  stoneDark: "#a8977f",
+  water: "#4a7f9f",
+  waterLight: "#cfe4ee",
+  wood: "#9a6548",
+  roof: "#b0463f",
+};
+
+export const HOWL = bySeason(HOWL_SUMMER, HOWL_WINTER);
 
 // Spirited Away: Story City's own map and its five buildings
 export const SPIRITED = {

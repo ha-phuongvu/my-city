@@ -2,15 +2,13 @@
 
 import type { ThreeEvent } from "@react-three/fiber";
 import { useMemo, useSyncExternalStore } from "react";
-import type { City } from "../constants/layout.constants";
+import type { CityId } from "../constants/layout.constants";
 
 // Pointing at a city (anywhere on its walled lawn, its floating model or its sign) starts everything in
 // it at once, as the prototype's playCity: the model's motion, its sign's, and Music City's flower beds
 // growing. It all keeps playing for as long as the pointer stays in the city: moving about inside it
 // (from the lawn onto the model) doesn't count as leaving, and nothing starts while the map is being
 // dragged.
-
-export type CityId = City["id"];
 
 let current: CityId | null = null;
 let leaving: ReturnType<typeof setTimeout> | undefined;

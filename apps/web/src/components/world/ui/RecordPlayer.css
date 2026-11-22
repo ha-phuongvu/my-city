@@ -1,0 +1,110 @@
+/* The record player in the bottom-right corner, over the world (it stays put however the world is
+   turned): a black record with its grooves and red label, a gold tonearm, and under it the song's name
+   and the buttons: the song before, play or pause (one button, showing what it will do), and the next */
+.rp-player {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 20;
+  width: 152px;
+  padding: 10px 10px 9px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: rgba(250, 246, 236, 0.9);
+  border: 1px solid rgba(90, 70, 50, 0.16);
+  box-shadow: 0 6px 18px rgba(40, 30, 20, 0.18);
+  color: #2f2622;
+  text-align: center;
+  user-select: none;
+  cursor: default;
+}
+.rp-player svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.rp-song {
+  margin: 4px 0 6px;
+  font:
+    600 0.72rem/1.25 system-ui,
+    sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rp-song small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.66rem;
+  opacity: 0.7;
+}
+.rp-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.rp-player button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(90, 70, 50, 0.22);
+  background: #fffaf0;
+  color: #2f2622;
+  cursor: pointer;
+}
+.rp-player button svg {
+  width: 14px;
+  height: 14px;
+}
+.rp-player button:hover {
+  background: #f6ead3;
+}
+.rp-player button:focus-visible {
+  outline: 2px solid #3d7d6c;
+  outline-offset: 2px;
+}
+.rp-player button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.rp-player .rp-main {
+  width: 40px;
+  height: 40px;
+  background: #b4862b;
+  border-color: #b4862b;
+  color: #fffaf0;
+}
+.rp-player .rp-main:hover {
+  background: #a3781f;
+}
+.rp-player .rp-main:disabled:hover {
+  background: #b4862b;
+}
+.rp-player .rp-main svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 720px) {
+  .rp-player {
+    width: 118px;
+    right: 8px;
+    bottom: 8px;
+    padding: 8px 8px 7px;
+    border-radius: 14px;
+  }
+  .rp-player button {
+    width: 28px;
+    height: 28px;
+  }
+  .rp-player .rp-main {
+    width: 34px;
+    height: 34px;
+  }
+  .rp-buttons {
+    gap: 6px;
+  }
+}

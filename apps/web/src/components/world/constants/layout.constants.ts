@@ -4,13 +4,32 @@
 
 export type XZ = [x: number, z: number];
 
+// the five cities
+export enum CityId {
+  Story = "story",
+  Music = "music",
+  Movie = "movie",
+  Game = "game",
+  Comic = "comic",
+}
+
+// the GLBs that float as the cities' symbols, and what floats along with them (public/models/<name>.glb)
+export enum SymbolModel {
+  Book = "book",
+  Piano = "piano",
+  Bench = "bench",
+  FilmReel = "film-reel",
+  Kendama = "kendama",
+  Kamishibai = "kamishibai",
+}
+
 export type City = {
-  id: "story" | "music" | "movie" | "game" | "comic";
+  id: CityId;
   open: boolean;
   center: XZ;
   /** the floating symbol: its model, the centre of its box, its turn on the map and its height */
   symbol: {
-    model: string;
+    model: SymbolModel;
     position: [number, number, number];
     quaternion: [number, number, number, number];
     height: number;
@@ -18,7 +37,12 @@ export type City = {
      * models that float along with the symbol, as parts of it in the prototype: each placed from the
      * symbol's position, turned about the up axis (radians) and scaled
      */
-    carries?: { model: string; offset: [number, number, number]; yaw: number; scale: number }[];
+    carries?: {
+      model: SymbolModel;
+      offset: [number, number, number];
+      yaw: number;
+      scale: number;
+    }[];
   };
   /** where the symbol's shadow falls on the ground, and how wide it is */
   shadow: { center: XZ; radius: number };
@@ -32,11 +56,11 @@ export type City = {
 // the size the map first had it (its CITY_GROW), so each city stands out from the countryside.
 export const CITIES: City[] = [
   {
-    id: "story",
+    id: CityId.Story,
     open: true,
     center: [-11.95, -11.95],
     symbol: {
-      model: "book",
+      model: SymbolModel.Book,
       position: [-12.0998, 5.3514, -10.9159],
       quaternion: [-0.3087, -0.3768, 0.1895, 0.8525],
       height: 7.9947,
@@ -44,11 +68,11 @@ export const CITIES: City[] = [
     shadow: { center: [-11.3425, -11.815], radius: 3.132 },
   },
   {
-    id: "music",
+    id: CityId.Music,
     open: true,
     center: [-14.91, -35.837],
     symbol: {
-      model: "piano",
+      model: SymbolModel.Piano,
       // it floats 4.05 back from the middle of the lawn (away from the camera), behind the music stand, the
       // tree and the flower bed on the front of the lawn (the prototype's SYM_BACK)
       position: [-17.7856, 6.0426, -38.5136],
@@ -57,16 +81,18 @@ export const CITIES: City[] = [
       // its bench, on the floor the piano's legs stand on, close in front of the keys, as big as the
       // piano (the prototype's pianoSeat: the card's bench turned 175 degrees and scaled 2.73, grown
       // with the city)
-      carries: [{ model: "bench", offset: [3.987, -4.0176, 3.3892], yaw: -3.0543, scale: 3.6855 }],
+      carries: [
+        { model: SymbolModel.Bench, offset: [3.987, -4.0176, 3.3892], yaw: -3.0543, scale: 3.6855 },
+      ],
     },
     shadow: { center: [-17.1658, -38.5667], radius: 3.348 },
   },
   {
-    id: "movie",
+    id: CityId.Movie,
     open: false,
     center: [22.186, -0.775],
     symbol: {
-      model: "film-reel",
+      model: SymbolModel.FilmReel,
       position: [22.6923, 6.4989, -1.616],
       quaternion: [0, 0, 0, 1],
       height: 8.8789,
@@ -74,11 +100,11 @@ export const CITIES: City[] = [
     shadow: { center: [22.7935, -0.64], radius: 2.7 },
   },
   {
-    id: "game",
+    id: CityId.Game,
     open: false,
     center: [-28.56, 24.557],
     symbol: {
-      model: "kendama",
+      model: SymbolModel.Kendama,
       position: [-28.562, 8.289, 24.537],
       quaternion: [-0.0247, 0, -0.0247, 0.9994],
       height: 12.5456,
@@ -86,11 +112,11 @@ export const CITIES: City[] = [
     shadow: { center: [-27.9525, 24.692], radius: 2.592 },
   },
   {
-    id: "comic",
+    id: CityId.Comic,
     open: false,
     center: [-47.856, -3.741],
     symbol: {
-      model: "kamishibai",
+      model: SymbolModel.Kamishibai,
       position: [-46.9562, 5.4365, -3.1786],
       quaternion: [0, 0.1132, 0, 0.9936],
       height: 6.1344,

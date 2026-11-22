@@ -9,6 +9,7 @@ import {
   SRGBColorSpace,
   type Texture,
 } from "three";
+import { TextAlign } from "../constants/face.constants";
 import { withRoomLight } from "./roomLight";
 
 // The words and pictures painted on a sign's board. The prototype lays them over its map as a page
@@ -19,7 +20,11 @@ import { withRoomLight } from "./roomLight";
 type Point = readonly [number, number, number];
 
 /** A sheet over a face: `at(s, t)` is its point s of the way across (left to right) and t down */
-export function faceSheet(at: (s: number, t: number) => Point, columns = 1, rows = 1): BufferGeometry {
+export function faceSheet(
+  at: (s: number, t: number) => Point,
+  columns = 1,
+  rows = 1,
+): BufferGeometry {
   const position: number[] = [];
   const uv: number[] = [];
   const index: number[] = [];
@@ -28,7 +33,8 @@ export function faceSheet(at: (s: number, t: number) => Point, columns = 1, rows
       position.push(...at(c / columns, r / rows));
       uv.push(c / columns, 1 - r / rows);
       const v = r * (columns + 1) + c;
-      if (r < rows && c < columns) index.push(v, v + columns + 1, v + 1, v + 1, v + columns + 1, v + columns + 2);
+      if (r < rows && c < columns)
+        index.push(v, v + columns + 1, v + 1, v + 1, v + columns + 1, v + columns + 2);
     }
   }
   const sheet = new BufferGeometry();
@@ -40,7 +46,11 @@ export function faceSheet(at: (s: number, t: number) => Point, columns = 1, rows
 }
 
 /** A flat face from its top left, top right and bottom left corners, lifted `lift` toward the viewer along `out` */
-export function flatSheet([tl, tr, bl]: readonly Point[], out: Point = [0, 0, 0], lift = 0): BufferGeometry {
+export function flatSheet(
+  [tl, tr, bl]: readonly Point[],
+  out: Point = [0, 0, 0],
+  lift = 0,
+): BufferGeometry {
   return faceSheet((s, t) => [
     tl[0] + (tr[0] - tl[0]) * s + (bl[0] - tl[0]) * t + out[0] * lift,
     tl[1] + (tr[1] - tl[1]) * s + (bl[1] - tl[1]) * t + out[1] * lift,
@@ -115,7 +125,13 @@ export function wordsWidth(canvas: Canvas, words: Words): number {
 }
 
 /** Draws a line of words with the middle of its line at y, starting at x (or centred on it) */
-export function drawWords(canvas: Canvas, words: Words, x: number, y: number, align: "left" | "center" = "center") {
+export function drawWords(
+  canvas: Canvas,
+  words: Words,
+  x: number,
+  y: number,
+  align = TextAlign.Center,
+) {
   const { context, k } = canvas;
   context.save();
   setFont(canvas, words);

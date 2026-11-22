@@ -1,5 +1,11 @@
 // The fixed values face.ts works with: the fonts the words on the signs are drawn in.
 
+// where a line of words is drawn from: its left end or its middle
+export enum TextAlign {
+  Left = "left",
+  Center = "center",
+}
+
 // The prototype page's fonts, then the nearest ones a computer is likely to have
 export const FONTS = {
   display: '"Kaisei Decol", Georgia, "Times New Roman", serif',

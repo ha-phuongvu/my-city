@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { Matrix4, type Mesh, type Object3D } from "three";
 import { useRoomLight, withRoomLight } from "./roomLight";
 import { frameOf, prototypeMatrix } from "./prototype";
-import { DRACO } from "../constants/Model.constants";
+import { DRACO } from "../constants/core/Model.constants";
 
 export type Parts = {
   /** this copy of the model, to show with <primitive object={model} /> */

@@ -1,6 +1,8 @@
 // The fixed numbers outskirts.ts works with: how thick the outskirts' grass, flowers and woods grow,
 // and how far out.
 
+import { bySeason } from "../utils/season";
+
 // one seed, so the outskirts grow the same every time
 export const SEED = 1117;
 
@@ -13,7 +15,8 @@ export const FLOWER_SHARE = 881 / 67591;
 // The woods: a tree may stand on a grid `spacing` apart, moved up to `jitter` of that either way.
 // Where the groves are (a noise `grove` across, its value over `thick`) every spot has a tree; out
 // in the open one in `lone` does. Pines grow together where the pine noise is over `pines`. No tree
-// stands past `edge`
+// stands past `edge`. In winter, with the round trees bare, a round tree where the pine noise is over
+// `winter` is a pine instead, so the woods are mixed
 export const WOODS = {
   spacing: 5.2,
   jitter: 0.4,
@@ -21,13 +24,17 @@ export const WOODS = {
   thick: 0.59,
   lone: 0.08,
   pines: 0.6,
+  winter: 0.47,
   edge: 130,
 };
 // the round trees' and pines' sizes (the prototype's, before Foliage grows them), and the round
-// trees' two leaf colours, the lighter one more often
+// trees' two leaf colours, the lighter one more often (in winter, the winter greens)
 export const ROUND_SIZE = [2.15, 2.95] as const;
 export const PINE_SIZE = [2.2, 2.9] as const;
-export const ROUND_COLORS = ["#568f52", "#568f52", "#3d6e48"];
+export const ROUND_COLORS = bySeason(
+  ["#568f52", "#568f52", "#3d6e48"],
+  ["#3f6e57", "#3f6e57", "#2d5344"],
+);
 // how often a round tree is an apple tree instead (a copy of one of the map's, apples and all): now
 // and then in a grove, more often standing out on its own
 export const APPLES = { grove: 0.15, lone: 0.4 };
@@ -41,7 +48,7 @@ export const BUSHES = {
     [-1, 1.6, 0.75],
   ] as const,
 };
-export const BUSH_COLORS = ["#568f52", "#a6c96c"];
+export const BUSH_COLORS = bySeason(["#568f52", "#a6c96c"], ["#3f6e57", "#6f9a74"]);
 
 // The patches of field flowers: a spot every `spacing` may have one (one in `share` do), as far as
 // `edge`, a step clear of the trees; each a copy of one of the prototype's (a big patch and two small ones)
@@ -50,14 +57,18 @@ export const PATCHES = { spacing: 12, share: 0.6, edge: 120, clear: 3.5 };
 // The meadow painted in soft patches, as the prototype paints its own (the colours its ground model
 // carries): big ones of lighter and darker grass, `size` across, one in each `spacing` square or so,
 // and many smaller ones over them, a little squashed one way, in sunlit yellow-green, fresh green and
-// deeper green (the share of each), as far as `edge`
+// deeper green (the share of each), as far as `edge`; in winter, in shades of snow
 export const MEADOW_PATCHES = {
-  big: { spacing: 26, size: [4, 9] as const, colors: ["#b0c67c", "#8cb16a"] },
+  big: {
+    spacing: 26,
+    size: [4, 9] as const,
+    colors: bySeason(["#b0c67c", "#8cb16a"], ["#eef3f7", "#e0e8ef"]),
+  },
   small: {
     spacing: 10,
     size: [2, 7] as const,
     squash: 0.7,
-    colors: ["#abc479", "#95bb6e", "#8fb36a"],
+    colors: bySeason(["#abc479", "#95bb6e", "#8fb36a"], ["#f3f6f9", "#e7eef3", "#dbe4ec"]),
     share: [0.4, 0.3, 0.3],
   },
   edge: 165,
