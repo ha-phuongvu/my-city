@@ -171,18 +171,22 @@ function growWoods() {
 
 export const OUTSKIRTS_TREES = growWoods();
 
-export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
+type XZ = [number, number];
+
+function outskirtsCopies<T>(
+  sets: T[][],
+  anchor: (set: T[]) => XZ,
+  spotsOf: (set: T[]) => XZ[],
+  shift: (item: T, from: XZ, to: XZ) => T,
+): T[] {
   const r = random(SEED + 4);
-  const sets = Array.from({ length: Math.floor(own.length / 3) }, (_, i) =>
-    own.slice(i * 3, i * 3 + 3),
-  );
   const trees = [
     ...OUTSKIRTS_TREES.round,
     ...OUTSKIRTS_TREES.apple,
     ...OUTSKIRTS_TREES.pine,
     ...OUTSKIRTS_TREES.bush,
   ];
-  const out: FlowerPatch[] = [];
+  const out: T[] = [];
   const { spacing, edge } = PATCHES;
   for (let gz = -edge; gz <= edge; gz += spacing) {
     for (let gx = -edge; gx <= edge; gx += spacing) {
@@ -190,19 +194,9 @@ export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
       const z = gz + (r() - 0.5) * spacing * 0.6;
       const set = sets[Math.floor(r() * sets.length)];
       if (r() > PATCHES.share || Math.hypot(x, z) > edge) continue;
-      const [cx, cz] = set[0].center;
-      const moved = set.map((p) => ({
-        center: [p.center[0] - cx + x, p.center[1] - cz + z] as [number, number],
-        radius: p.radius,
-        flowers: p.flowers.map((v, i) => (i % 5 === 0 ? v - cx + x : i % 5 === 1 ? v - cz + z : v)),
-      }));
-
-      const spots = moved.flatMap((p) =>
-        Array.from({ length: p.flowers.length / 5 }, (_, i) => [
-          p.flowers[i * 5],
-          p.flowers[i * 5 + 1],
-        ]),
-      );
+      const [cx, cz] = anchor(set);
+      const moved = set.map((item) => shift(item, [cx, cz], [x, z]));
+      const spots = spotsOf(moved);
       if (!spots.every(([fx, fz]) => grassAt(fx, fz))) continue;
       if (
         trees.some((t) =>
@@ -216,6 +210,43 @@ export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
     }
   }
   return out;
+}
+
+export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
+  return outskirtsCopies(
+    Array.from({ length: Math.floor(own.length / 3) }, (_, i) => own.slice(i * 3, i * 3 + 3)),
+    (set) => set[0].center,
+    (set) =>
+      set.flatMap((p) =>
+        Array.from({ length: p.flowers.length / 5 }, (_, i): XZ => [
+          p.flowers[i * 5],
+          p.flowers[i * 5 + 1],
+        ]),
+      ),
+    (p, [cx, cz], [x, z]) => ({
+      center: [p.center[0] - cx + x, p.center[1] - cz + z],
+      radius: p.radius,
+      flowers: p.flowers.map((v, i) => (i % 5 === 0 ? v - cx + x : i % 5 === 1 ? v - cz + z : v)),
+    }),
+  );
+}
+
+export type Pile = { x: number; z: number; rx: number; rz: number; seed: number };
+
+export function outskirtsPiles(own: Pile[][]): Pile[] {
+  return outskirtsCopies(
+    own,
+    (set) => [set[0].x, set[0].z],
+    (set) =>
+      set.flatMap(({ x, z, rx, rz }): XZ[] => [
+        [x, z],
+        [x + rx, z],
+        [x - rx, z],
+        [x, z + rz],
+        [x, z - rz],
+      ]),
+    (p, [cx, cz], [x, z]) => ({ ...p, x: p.x - cx + x, z: p.z - cz + z }),
+  );
 }
 
 function smoothLoop(pts: [number, number][], steps: number): [number, number][] {

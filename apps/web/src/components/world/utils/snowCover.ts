@@ -27,21 +27,26 @@ export class Cover {
   amount = 1;
   running = false;
 
+  constructor(
+    private length: number = COVER.cover,
+    private wait = 0,
+  ) {}
+
   start() {
     if (this.running) return;
     this.running = true;
-    this.amount = 0;
+    this.amount = -this.wait / this.length;
   }
 
   step(delta: number) {
     if (!this.running) return false;
-    this.amount = Math.min(1, this.amount + delta / COVER.cover);
+    this.amount = Math.min(1, this.amount + delta / this.length);
     if (this.amount >= 1) this.running = false;
     return true;
   }
 
   get white() {
-    return eased(this.amount);
+    return eased(Math.max(0, this.amount));
   }
 }
 
