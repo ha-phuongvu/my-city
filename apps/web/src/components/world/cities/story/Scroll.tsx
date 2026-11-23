@@ -38,16 +38,6 @@ import {
   WRITE,
 } from "../../constants/cities/story/Scroll.constants";
 
-// Story City's name sign: a scroll of paper standing on the grass, a quill lying across it with its
-// nib on the writing, and the inkwell on the grass beside it. The city's name is written on the
-// paper in dark-blue ink, as the prototype's page lays it there. Pointing at Story City (the scroll,
-// its lawn or its book) makes the words vanish and the quill write them again, line by line: the
-// nib lifts and moves to the start of a line, runs along it with a little up and down as
-// handwriting does while the line appears behind it, and when all are written the quill goes back
-// to rest (writeScroll). A moment later it writes them again, for as long as the pointer stays in
-// the city; once it leaves, the quill finishes the name and rests.
-
-/** The sheet's middle line k of the way up, and how far it curves toward us X across (scrollSign's prof and bend) */
 const profile = (k: number) => [
   0.07 * (W / 1.7) * Math.sin(Math.PI * 2 * k + 0.4),
   0.02 - 0.14 * k + 0.07 * Math.sin(Math.PI * 2 * k),
@@ -55,7 +45,6 @@ const profile = (k: number) => [
 ];
 const bend = (X: number) => 0.13 * ((2 * X) / W) ** 2;
 
-/** The point s across and t down the words' face, on the curving sheet, `out` in front of it */
 function onSheet(s: number, t: number, out = LIFT): [number, number, number] {
   const X = -W / 2 + PAD + s * WIDTH;
   const [px, py, pz] = profile(0.9 - 0.8 * t);
@@ -111,7 +100,7 @@ function layout(face: Canvas, name: string, sub: string): Line[] {
       along: 0.72,
     },
   ];
-  // the second word tucks up 0.06 under the first; the flourish has 0.02 above it and 0.06 below
+
   const before = (i: number) =>
     lines[i].words === second ? -0.06 * U : !lines[i].words ? 0.02 * U : 0;
   const after = (i: number) => (!lines[i].words ? 0.06 * U : 0);
@@ -125,7 +114,6 @@ function layout(face: Canvas, name: string, sub: string): Line[] {
   });
 }
 
-/** The words, each line shown as far as `shown` (0 to 1 across it) */
 function paintWords(face: Canvas, lines: Line[], shown: number[]) {
   const { context, k } = face;
   context.clearRect(0, 0, WIDTH * k, HEIGHT * k);
@@ -143,8 +131,6 @@ function paintWords(face: Canvas, lines: Line[], shown: number[]) {
     context.clip();
     if (line.words) drawWords(face, line.words, WIDTH / 2, line.top + line.height / 2);
     else {
-      // the flourish: the box's bottom edge, curving down from its top left to its foot and up to the
-      // right, tipped 3 degrees (border-radius 0 0 60% 40% / 0 0 100% 70%)
       context.translate((left + line.width / 2) * k, (line.top + line.height / 2) * k);
       context.rotate((-3 * Math.PI) / 180);
       const w = line.width * k;
@@ -165,11 +151,6 @@ function paintWords(face: Canvas, lines: Line[], shown: number[]) {
 
 type Key = { time: number; at: Vector3 };
 
-/**
- * The quill's path while it writes: where the nib is at each moment (prototype units, on the card),
- * and when each line starts to appear. Between lines it lifts: up the page by half the line's
- * height, and off the paper a little.
- */
 function path(lines: Line[]) {
   const keys: Key[] = [{ time: 0, at: NIB.clone() }];
   const starts: number[] = [];
@@ -196,7 +177,7 @@ function path(lines: Line[]) {
     const lift = line.height * 0.5;
     move(point(left + 0.03 * line.width, y), WRITE.reach, lift);
     starts.push(time);
-    // six steps along the line, the nib bobbing a little up and down
+
     for (let step = 1; step <= 6; step++) {
       const x = left + (0.03 + (0.94 * step) / 6) * line.width;
       keys.push({
@@ -212,15 +193,13 @@ function path(lines: Line[]) {
 }
 
 type Props = MotionProps & {
-  /** where the scroll stands: the prototype's units on its card → the map */
   place: Matrix4;
-  /** where the inkwell stands, the same way (on the map it sits a little apart from the scroll) */
+
   inkPlace?: Matrix4;
   name: string;
   sub: string;
 };
 
-/** Story City's scroll, its quill writing the name again when the city is pointed at */
 export function Scroll({ place, inkPlace, name, sub, ...motion }: Props) {
   const { model, part, toModel } = useParts("/models/scroll.glb");
   const light = useRoomLight();
@@ -247,8 +226,7 @@ export function Scroll({ place, inkPlace, name, sub, ...motion }: Props) {
     },
     [sheet, look, face],
   );
-  // on the map the inkwell stands apart from the scroll: carried from where the scroll's placing
-  // puts it to where its own does
+
   useEffect(() => {
     const ink = part("inkwell");
     if (!ink || !inkPlace) return;
@@ -258,7 +236,7 @@ export function Scroll({ place, inkPlace, name, sub, ...motion }: Props) {
 
   useFrame(() => {
     const t = still ? undefined : play();
-    // each line hidden until the nib reaches it, then shown as far as the nib has run along it
+
     const shown = lines.map((line, i) =>
       t === undefined ? 1 : Math.min(1, Math.max(0, (t - writing.starts[i]) / line.write)),
     );

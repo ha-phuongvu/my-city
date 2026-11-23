@@ -10,7 +10,6 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
-// The tab title and the description for search engines; nothing on the page itself is text
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Metadata");
   return { title: t("title"), description: t("description") };

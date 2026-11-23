@@ -19,10 +19,6 @@ import {
   WIDTH,
 } from "../../constants/cities/movie/NameSign.constants";
 
-// A city's wooden A-frame name sign (Movie City's). Its name is painted on the front board in cream,
-// as the prototype's page lays it there: the first word big, the rest under it in capitals, a thin
-// rule and the city's status. A city that opens later has its sign a little faded, as on the map.
-
 function paintBoard(name: string, sub: string, later: boolean) {
   const face = faceCanvas(WIDTH, HEIGHT, 400);
   const color = later ? CREAM.later : CREAM.open;
@@ -76,15 +72,13 @@ function paintBoard(name: string, sub: string, later: boolean) {
 }
 
 type Props = {
-  /** where it stands: the prototype's units on its card → the map */
   place: Matrix4;
   name: string;
   sub: string;
-  /** a city that opens later: its sign a little faded */
+
   later?: boolean;
 };
 
-/** A city's wooden A-frame sign with its name painted on */
 export function NameSign({ place, name, sub, later = false }: Props) {
   const { model, toModel } = useParts("/models/name-sign.glb");
   const light = useRoomLight();
@@ -96,7 +90,7 @@ export function NameSign({ place, name, sub, later = false }: Props) {
     if (!later) return;
     model.traverse((object) => {
       const material = (object as Mesh).material as MeshStandardMaterial | undefined;
-      // (once: this copy's materials are its own)
+
       if (!material?.color || material.userData.faded) return;
       material.color.convertLinearToSRGB().lerp(FADE, FADED).convertSRGBToLinear();
       material.userData.faded = true;

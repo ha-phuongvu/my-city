@@ -1,20 +1,10 @@
 import { Matrix4, Vector3 } from "three";
 import { SignKind } from "../constants/signLayout.constants";
 
-// The cities' name signs and the future-city plot's barricade, where the prototype's map puts them
-// (buildWorld: each city's sign SIGN_AT, grown 1.35 times with its city (CITY_GROW), from its middle,
-// turned a little, and the barricade 2.7 in front of the plot), in the prototype's units; some are a
-// different size from their cards.
-//
-// The prototype has x and y on the ground and z up, with the ground at 0.15; the site has x and z
-// on the ground (its x the prototype's x, its z the prototype's y) and y up from the ground at 0.
-
 const G = 0.15;
 
-/** The prototype's map → the site's */
 export const TO_SITE = new Matrix4().set(1, 0, 0, 0, 0, 0, 1, -G, 0, 1, 0, 0, 0, 0, 0, 1);
 
-/** A sign as its card builds it: where it stands, its turn (degrees), width and height */
 type Card = { at: [number, number, number]; turn: number; width: number; height: number };
 
 const CARDS = {
@@ -26,11 +16,6 @@ const CARDS = {
   barricade: { at: [0, 0, 0.15], turn: -10, width: 2.3, height: 1.75 },
 } satisfies Record<string, Card>;
 
-/**
- * From a sign's card to its place on the prototype's map: moved to (x, y, z), turned to `turn` and
- * stretched to the map's width and height. The stretch is across the sign and up it, not front to
- * back, as the prototype's sign builders only widen and heighten the board.
- */
 function cardToMap(
   card: Card,
   x: number,
@@ -55,7 +40,6 @@ function cardToMap(
     .multiply(new Matrix4().makeTranslation(-card.at[0], -card.at[1], -card.at[2]));
 }
 
-/** From a sign's card to the site's map */
 const place = (
   card: Card,
   x: number,
@@ -77,10 +61,8 @@ export type SignAt =
     }
   | { kind: SignKind.Barricade; name: string; sub: string; place: Matrix4 };
 
-/** Every sign on the map, where the prototype puts it (its map's x and y, its turn, width and height) */
 export function signsAt(): SignAt[] {
   return [
-    // Story City's scroll, and the inkwell on the lawn below its quill, the inkwell's own size
     {
       kind: SignKind.Scroll,
       name: "Story City",
@@ -109,7 +91,7 @@ export function signsAt(): SignAt[] {
       later: true,
       place: place(CARDS.led, -23.2145, 24.4616, G, -22, 2.6, 1.05),
     },
-    // (Comic City's name is on its theatre's title card, so it has no sign)
+
     {
       kind: SignKind.Barricade,
       name: "Future city",

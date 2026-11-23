@@ -8,20 +8,15 @@ import { frameOf, prototypeMatrix } from "./prototype";
 import { DRACO } from "../constants/core/Model.constants";
 
 export type Parts = {
-  /** this copy of the model, to show with <primitive object={model} /> */
   model: Object3D;
-  /** one of its named parts (a door, the ball, the flag's cloth), or undefined if it has none by that name */
+
   part: (name: string) => Object3D | undefined;
-  /** the model's parts whose names start with `prefix` (apple-0, apple-1, …) */
+
   partsNamed: (prefix: string) => Object3D[];
-  /** prototype units → the model's own (see prototype.ts); none for a model without a frame */
+
   toModel: Matrix4;
 };
 
-/**
- * A copy of a GLB model whose parts can move: lit like Model (the room light), with its named
- * parts and the matrix from the prototype's units into it.
- */
 export function useParts(src: string): Parts {
   const { scene } = useGLTF(src, DRACO);
   const light = useRoomLight();

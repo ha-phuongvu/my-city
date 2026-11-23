@@ -23,12 +23,6 @@ import {
   ROWS,
 } from "../../constants/cities/future/SurveyFlag.constants";
 
-// A survey flag flying in the wind, as on the prototype's map: a wave runs down the cloth from the
-// pole to its free end, growing as it goes (surveyFlag's at(u, v) with the phase going once round
-// in a little under a second). The model's own cloth stays still, so it is hidden and the cloth is
-// drawn here every frame from the same formula, with the same diagonal stripes.
-
-/** Where the point u along the cloth and v down from its top edge is, with the wave at phase ph */
 function at(u: number, v: number, ph: number): [number, number, number] {
   const sway = 0.07 * (0.45 + (0.75 * u) / CLOTH.length) * Math.sin(u * 6.5 - ph);
   const drop = 0.04 * Math.sin(u * 4 - ph) * (0.5 + u / CLOTH.length);
@@ -39,7 +33,6 @@ function at(u: number, v: number, ph: number): [number, number, number] {
   ];
 }
 
-/** The cloth's diagonal stripes, as long and deep as the cloth itself */
 function stripes(colors: string[]): CanvasTexture {
   const scale = 640;
   const canvas = document.createElement("canvas");
@@ -47,7 +40,6 @@ function stripes(colors: string[]): CanvasTexture {
   canvas.height = Math.round(CLOTH.depth * scale);
   const context = canvas.getContext("2d");
   if (context) {
-    // band k is where u + v runs from k to k + 1 stripe widths, the first one at the pole's top
     const reach = (CLOTH.length + CLOTH.depth) * scale;
     for (let k = 0; k * CLOTH.stripe * scale < reach; k++) {
       const a = k * CLOTH.stripe * scale;
@@ -68,7 +60,6 @@ function stripes(colors: string[]): CanvasTexture {
   return texture;
 }
 
-/** The grid of the cloth: its points move every frame, the stripes stay pinned to them */
 function sheet(): BufferGeometry {
   const geometry = new BufferGeometry();
   const count = (COLUMNS + 1) * (ROWS + 1);
@@ -90,15 +81,13 @@ function sheet(): BufferGeometry {
 }
 
 type Props = MotionProps & {
-  /** red and white, or blue and white */
   kind?: FlagColor;
-  /** seconds for one wave to run down the cloth (the map's flags take 0.9 to 1.04) */
+
   period?: number;
-  /** how far into its wave this flag starts, in seconds, so flags side by side don't flap together */
+
   lead?: number;
 };
 
-/** A survey flag on its pole, its cloth flying, in the model's own units */
 export function SurveyFlag({ kind = FlagColor.Red, period = 1, lead = 0, ...motion }: Props) {
   const { src, stripes: colors } = FLAGS[kind];
   const { model, part, toModel } = useParts(src);
@@ -119,7 +108,6 @@ export function SurveyFlag({ kind = FlagColor.Red, period = 1, lead = 0, ...moti
     [colors, light],
   );
   useEffect(() => {
-    // the model's own cloth stays put; this one flies
     const own = part("cloth");
     if (own) own.visible = false;
   }, [part]);
@@ -150,7 +138,7 @@ export function SurveyFlag({ kind = FlagColor.Red, period = 1, lead = 0, ...moti
   return (
     <group>
       <primitive object={model} />
-      {/* the cloth is worked out in the prototype's units */}
+
       <mesh
         matrixAutoUpdate={false}
         matrix={toModel}

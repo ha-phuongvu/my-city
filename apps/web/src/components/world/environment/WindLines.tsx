@@ -15,18 +15,6 @@ import {
   WIND,
 } from "../constants/environment/WindLines.constants";
 
-// The wind lines in the air, as on the prototype's map (its windLines, after bruno-simon.com): every
-// 0.3 to 2 seconds a thin white line, a gentle wave about 8 long, appears somewhere in view lying along
-// the wind (at most four at once). Over its 3.6 seconds a thick part runs along it from the upwind end
-// to the other, so it draws itself in and fades out behind, tapering at both ends, as it drifts a little
-// downwind. Nobody who has asked for less motion sees them.
-//
-// The prototype draws them on its picture; here they float over the ground, sized so that seen from
-// the opening view they match its picture: the wind's way on the picture is (0.97, 0.24), which on the
-// ground is WIND below, and a map unit along it is ALONG picture units; the wave rises and falls (a
-// picture unit up is a map unit up), and the line always faces the camera, 0.22 picture units
-// (0.22 × √(2/3) of a map unit) thick at its thickest.
-
 type Line = { center: Vector3; born: number; length: number; wave: number };
 
 const smooth = (q: number) => {
@@ -34,7 +22,6 @@ const smooth = (q: number) => {
   return k * k * (3 - 2 * k);
 };
 
-/** Wind lines drifting over the land, in white, drawn in front of nothing they're behind */
 export function WindLines() {
   const still = useStill();
   const lines = useRef<Line[]>([]);
@@ -78,8 +65,7 @@ export function WindLines() {
   useFrame(({ clock, camera }) => {
     if (still) return;
     const now = clock.elapsedTime;
-    // a new line every so often, somewhere in view: under a random spot on the screen, at a height in
-    // the air, where that's not off past the haze
+
     if (now >= next.current) {
       next.current = now + 0.3 + Math.random() * 1.7;
       if (lines.current.length < MOST) {
@@ -115,14 +101,14 @@ export function WindLines() {
       for (let q = 0; q < POINTS; q++) {
         const r = q / (POINTS - 1);
         const along = (r - 0.5) * line.length;
-        // the wave, and how steeply it rises or falls there
+
         const off = -0.5 * line.wave * Math.cos(3 * Math.PI * r);
         const slope = (0.5 * line.wave * 3 * Math.PI * Math.sin(3 * Math.PI * r)) / line.length;
         const thick = THICK * smooth(1 - Math.abs(r * 2 - 1)) * smooth(1 - Math.abs(r - head));
         at.copy(line.center)
           .addScaledVector(WIND, along + DRIFT * p)
           .addScaledVector(UP, off);
-        // its thickness lies square to the line and to the way to the camera, so it always faces it
+
         run.copy(WIND).addScaledVector(UP, slope);
         toCamera.subVectors(camera.position, at);
         side

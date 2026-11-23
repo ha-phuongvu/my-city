@@ -4,10 +4,6 @@ import { SoftShadows } from "@react-three/drei";
 import { HOWL } from "../constants/palette.constants";
 import { SHADOW_REACH, SUN_AT } from "../constants/core/WorldLights.constants";
 
-// The light setup from the prototype's Models tab: a warm golden sun from the upper left, sky fill
-// from above and meadow bounce from below, so shaded sides turn cool blue instead of grey. The sun
-// casts soft shadows, as under the trees and symbols on the prototype's map. The models also take a
-// soft room light of their own (roomLight.ts).
 export function WorldLights() {
   return (
     <>

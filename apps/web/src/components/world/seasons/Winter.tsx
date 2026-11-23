@@ -12,7 +12,6 @@ import {
   CylinderGeometry,
   ExtrudeGeometry,
   Float32BufferAttribute,
-  LatheGeometry,
   Matrix4,
   type Mesh,
   MeshStandardMaterial,
@@ -38,8 +37,11 @@ import {
   SNOWFALL,
   SNOWMAN,
   SNOWMEN,
-  TIER,
+  NO_CHASE,
+  STOCKINGS,
+  TIPS,
   TREE,
+  TREE_LIGHTS,
   FACE,
   UP,
   WALL_HIGHEST,
@@ -56,25 +58,9 @@ import { isWinter } from "../utils/season";
 import { useParts } from "../utils/useParts";
 import { ownWave, WAVE_GLSL, WAVE_UNIFORMS } from "../utils/wave";
 
-// Christmas in the winter world, over everything else, as on the winter prototype (its christmas3D):
-// - snow falling round wherever the camera looks, drifting with the wind and swaying as it comes down
-//   (each flake stays where it is in the world as the camera moves over it; the box it falls in grows
-//   and shrinks with how far back the camera is, in steps);
-// - a big fir in the World Plaza beside the fountain, on the side away from the lanes: tiers of winter
-//   green with snow along their tops, a gold garland wound round it, baubles hanging from its branch
-//   tips, fairy lights, a glowing gold star on top, and presents in the snow under it;
-// - warm fairy lights strung along the top of every city's wall and the plaza's, drooping a little
-//   between their hooks, wherever the wall stands (none across the ways in);
-// - three snowmen out in the snow by the lanes, facing the opening view: coal eyes, smile and buttons,
-//   a carrot nose, a scarf, twig arms and a hat each.
-// The tree, the presents and the snowmen are lit like the world's models and come up with the
-// opening's wave; the lights shine once the wave has passed them. With less motion no snow falls and
-// nothing twinkles. Nothing of it is there in summer.
-
 const G = GROUND_Y;
 const at = (x: number, y: number, z: number) => new Matrix4().makeTranslation(x, y, z);
 
-/** Pieces gathered into one mesh, every corner its colour */
 class Pieces {
   position: number[] = [];
   normal: number[] = [];
@@ -84,7 +70,6 @@ class Pieces {
   private n = new Vector3();
   private p = new Vector3();
 
-  /** A piece moved by m, each corner coloured c (a colour, or one from its normal and point) */
   put(g: BufferGeometry, c: string | ((n: Vector3, p: Vector3) => string), m?: Matrix4) {
     if (m) g.applyMatrix4(m);
     if (!g.attributes.normal) g.computeVertexNormals();
@@ -115,19 +100,29 @@ class Pieces {
   }
 }
 
-/** Glowing points (the bulbs and the star's glow): where, colour, and [size, phase, how fast it twinkles] */
 class Glows {
   position: number[] = [];
   tint: number[] = [];
   glow: number[] = [];
+  chase: number[] = [];
   private c = new Color();
   constructor(private still: boolean) {}
 
-  add(x: number, y: number, z: number, c: string, size: number, speed: number) {
+  add(
+    x: number,
+    y: number,
+    z: number,
+    c: string,
+    size: number,
+    speed: number,
+    haze = false,
+    chase = NO_CHASE,
+  ) {
     this.c.set(c);
     this.position.push(x, y, z);
     this.tint.push(this.c.r, this.c.g, this.c.b);
-    this.glow.push(size, Math.random() * Math.PI * 2, this.still ? 0 : speed);
+    this.glow.push(size, Math.random() * Math.PI * 2, this.still ? 0 : speed, haze ? 0 : 1);
+    this.chase.push(this.still ? NO_CHASE : chase);
   }
 }
 
@@ -136,116 +131,166 @@ const mix = (a: string, b: string, t: number) =>
 const warm = () => LIGHTS.colors[Math.floor(Math.random() * LIGHTS.colors.length)];
 const twinkle = () =>
   (Math.PI * 2) / (LIGHTS.twinkle[0] + Math.random() * (LIGHTS.twinkle[1] - LIGHTS.twinkle[0]));
+const smooth = (a: number, b: number, x: number) => {
+  const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
 
-/** The plaza's tree, its presents, and the lights on it */
+type Tier = { y: number; h: number; r: number; n: number; turn: number };
+
+function sheet(P: number[], rows: number, cols: number) {
+  const g = new BufferGeometry();
+  const I: number[] = [];
+  for (let r = 0; r + 1 < rows; r++)
+    for (let c = 0; c + 1 < cols; c++) {
+      const v = r * cols + c;
+      I.push(v, v + cols, v + 1, v + 1, v + cols, v + cols + 1);
+    }
+  g.setAttribute("position", new Float32BufferAttribute(P, 3));
+  g.setIndex(I);
+  g.computeVertexNormals();
+  let up = 0;
+  for (let v = 0; v < rows * cols; v++) up += g.attributes.normal.getY(v);
+  if (up < 0) {
+    for (let v = 0; v < I.length; v += 3) [I[v + 1], I[v + 2]] = [I[v + 2], I[v + 1]];
+    g.setIndex(I);
+    g.computeVertexNormals();
+  }
+  return g;
+}
+
 function christmasTree(pieces: Pieces, glows: Glows) {
   const T = TREE;
+  const FL = TREE_LIGHTS;
   const [tx, tz] = T.at;
   const yb = G + T.foot;
-  // each tier: its foot, height and width; the stack is then fitted to the tree's height
-  const tiers: { y: number; h: number; r: number }[] = [];
-  let [y, hb, rb] = [yb + 0.55, 1, T.radius as number];
+  const from = pieces.position.length;
+  const glowFrom = glows.position.length;
+
+  const tiers: Tier[] = [];
+  let [y, hb, rb] = [yb + T.bare, 1, T.radius as number];
   for (let i = 0; i < T.tiers; i++) {
-    tiers.push({ y, h: hb, r: rb });
+    const n = Math.max(TIPS.least, Math.round(TIPS.count * Math.sqrt(rb / T.radius)));
+    tiers.push({ y, h: hb, r: rb, n, turn: i * 0.61 });
     y += hb * T.over;
     hb *= T.shrink[0];
     rb *= T.shrink[1];
   }
   const last = tiers[T.tiers - 1];
-  const fit = (T.height - 0.45 - 0.55) / (last.y + last.h - yb - 0.55);
+  const fit = (T.height - 0.45 - T.bare) / (last.y + last.h - yb - T.bare);
   for (const t of tiers) {
-    t.y = yb + 0.55 + (t.y - yb - 0.55) * fit;
+    t.y = yb + T.bare + (t.y - yb - T.bare) * fit;
     t.h *= fit;
   }
   const top = last.y + last.h;
-  // how far out the tree reaches at height Y (its tiers' outsides)
-  const outAt = (Y: number) => {
-    let r = 0.12;
-    for (const t of tiers) {
-      const f = (Y - t.y) / t.h;
-      if (f >= -0.02 && f <= 1) r = Math.max(r, t.r * Math.min(1, 1 - f * 0.95));
-    }
-    return r;
+
+  const tipAt = (t: Tier, a: number) => {
+    const f = (((((a - t.turn) * t.n) / (2 * Math.PI)) % 1) + 1) % 1;
+    return Math.abs(2 * f - 1);
   };
-  pieces.put(new CylinderGeometry(0.2, 0.26, 0.75, 10), T.trunk, at(tx, yb + 0.375, tz));
+  const onTier = (t: Tier, u: number, a: number, tip = tipAt(t, a)): [number, number] => {
+    const s = smooth(TIPS.from, 1, u);
+    return [
+      t.r * u * (1 - TIPS.notch * s * (1 - tip)),
+      t.y + t.h * (1 - u ** T.bow) - t.h * TIPS.droop * s * s * (0.35 + 0.65 * tip),
+    ];
+  };
+
+  const trunk = T.bare + 0.5;
+  pieces.put(
+    new CylinderGeometry(0.24, 0.34, trunk, 14, 6),
+    (n, p) =>
+      Math.sin(Math.atan2(p.z - tz, p.x - tx) * 7 + Math.sin(p.y * 9) * 0.7) > 0.5
+        ? T.trunk[1]
+        : T.trunk[0],
+    at(tx, yb + trunk / 2, tz),
+  );
+
   tiers.forEach((t, k) => {
-    // a tier: a cone with its rim drooping into branch tips, curling under, and its underside back to the trunk
-    const g = new LatheGeometry(
-      TIER.map(([out, up]) => new Vector2(out * t.r, up * t.h)),
-      28,
-    );
-    const P = g.attributes.position;
-    for (let v = 0; v < P.count; v++) {
-      const [x, z] = [P.getX(v), P.getZ(v)];
-      const out = Math.max(0, Math.hypot(x, z) / t.r - 0.6) / 0.4;
-      const tip = Math.sin(Math.atan2(z, x) * 9 + k * 1.7);
-      P.setXYZ(
-        v,
-        x * (1 + 0.07 * out * tip),
-        P.getY(v) - 0.06 * t.h * out * (1 + tip) * 0.5,
-        z * (1 + 0.07 * out * tip),
-      );
-    }
+    const cols = t.n * 4 + 1;
+    const rows = 15;
+    const P: number[] = [];
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        const a = t.turn + (c / (cols - 1)) * Math.PI * 2;
+        let q: [number, number];
+        if (r <= 12) q = onTier(t, r / 12, a);
+        else {
+          const e = onTier(t, 1, a);
+          const f = r === 13 ? 0.4 : 1;
+          q = [e[0] * (1 - f), e[1] + (t.y + 0.28 * t.h - e[1]) * f];
+        }
+        P.push(tx + q[0] * Math.cos(a), q[1], tz + q[0] * Math.sin(a));
+      }
+    const g = sheet(P, rows, cols).toNonIndexed();
     g.computeVertexNormals();
-    // (its top facing up: the lathe may have turned its faces inside out)
-    const N = g.attributes.normal;
-    if (N.getY(2) < 0) for (let v = 0; v < N.array.length; v++) N.array[v] = -N.array[v];
-    // snow in drifts along the top of the tier toward its tips, here and there round it; the tips,
-    // the rest and the underside green
-    pieces.put(
-      g,
-      (n, p) => {
-        const [lx, lz] = [p.x - tx, p.z - tz];
-        const [r, a] = [Math.hypot(lx, lz) / t.r, Math.atan2(lz, lx)];
-        const green = T.green[(k + (Math.sin(a * 5 + k) > 0.6 ? 1 : 0)) % 2];
-        const lo = 0.7 + 0.1 * Math.sin(a * 7 + k * 2.3) + 0.05 * Math.sin(a * 13 + k);
-        if (n.y < 0.15) return T.green[2];
-        if (r > lo && r < 0.9 && Math.sin(a * 4 + k * 1.9) > -0.45) return T.snow;
-        return r >= 0.9 ? mix(green, T.snow, 0.12) : green;
-      },
-      at(tx, t.y, tz),
-    );
+    pieces.put(g, (n, p) => {
+      if (n.y < -0.05) return T.green[3];
+      const [lx, lz] = [p.x - tx, p.z - tz];
+      const tip = tipAt(t, Math.atan2(lz, lx));
+      const s = smooth(TIPS.from - 0.1, 1, Math.hypot(lx, lz) / t.r);
+      return mix(T.green[1], tip > 0.5 ? T.green[0] : T.green[2], s * Math.abs(tip - 0.5) * 2);
+    });
+
+    const cap = k === T.tiers - 1;
+    const SR = 9;
+    const SP: number[] = [];
+    const nl = Math.hypot(t.h, t.r);
+    for (let r = 0; r < SR; r++)
+      for (let c = 0; c < cols; c++) {
+        const a = t.turn + (c / (cols - 1)) * Math.PI * 2;
+        const patch = cap
+          ? 1
+          : smooth(-0.55, -0.05, Math.sin(a * 2 + k * 2.1) + 0.6 * Math.sin(a * 3 + k * 1.3));
+        const wide =
+          (cap ? 0.5 : 0.24 + 0.06 * Math.sin(a * 5 + k)) * patch * (0.75 + 0.3 * tipAt(t, a));
+        const fr = Math.min(1, r / (SR - 2));
+        const u = (cap ? 0 : 0.6) + wide * fr + (r === SR - 1 ? 0.02 * patch : 0);
+        const lift =
+          r === 0 || r === SR - 1
+            ? 0
+            : (0.05 + 0.06 * Math.sin(fr * Math.PI)) * (0.3 + 0.7 * patch);
+        const q = onTier(t, u, a);
+        const out = q[0] + (lift * t.h) / nl;
+        SP.push(tx + out * Math.cos(a), q[1] + (lift * t.r) / nl, tz + out * Math.sin(a));
+      }
+    pieces.put(sheet(SP, SR, cols), T.snow);
   });
-  // the garland, wound round from just under the star to the bottom tier
-  const [g0, g1] = [tiers[0].y + 0.1, top - 0.35];
-  const path: Vector3[] = [];
-  for (let i = 0; i <= 120; i++) {
-    const u = i / 120;
-    const Y = g1 + (g0 - g1) * u;
-    const a = u * T.garland.turns * Math.PI * 2;
-    const R = outAt(Y) * 0.93 + 0.05;
-    path.push(
-      new Vector3(tx + R * Math.cos(a), Y - 0.08 * Math.abs(Math.sin(a * 2)), tz + R * Math.sin(a)),
+
+  for (const [tier, turn] of STOCKINGS.at) {
+    const t = tiers[tier];
+    const step = (2 * Math.PI) / t.n;
+    const a = t.turn + Math.round((Math.PI / 4 - (turn * Math.PI) / 180 - t.turn) / step) * step;
+    const s = turn >= 0 ? 1 : -1;
+    const e = onTier(t, 0.96, a);
+    const M = at(tx + (e[0] + 0.07) * Math.cos(a), e[1] - 0.02, tz + (e[0] + 0.07) * Math.sin(a))
+      .multiply(new Matrix4().makeRotationY(Math.PI / 2 - a))
+      .multiply(new Matrix4().makeRotationX(-0.3));
+    const sock = new Shape();
+    sock.moveTo(-0.08 * s, 0);
+    sock.lineTo(-0.08 * s, -0.3);
+    sock.quadraticCurveTo(-0.08 * s, -0.42, 0.03 * s, -0.42);
+    sock.lineTo(0.15 * s, -0.42);
+    sock.quadraticCurveTo(0.23 * s, -0.41, 0.22 * s, -0.34);
+    sock.quadraticCurveTo(0.21 * s, -0.28, 0.08 * s, -0.26);
+    sock.lineTo(0.08 * s, 0);
+    sock.closePath();
+    const sg = new ExtrudeGeometry(sock, {
+      depth: 0.07,
+      bevelEnabled: true,
+      bevelThickness: 0.02,
+      bevelSize: 0.02,
+      bevelSegments: 2,
+    });
+    sg.translate(0, 0, -0.035);
+    pieces.put(sg, STOCKINGS.color, M.clone());
+    pieces.put(
+      new BoxGeometry(0.24, 0.09, 0.12),
+      STOCKINGS.cuff,
+      M.clone().multiply(at(0, -0.02, 0)),
     );
   }
-  pieces.put(
-    new TubeGeometry(new CatmullRomCurve3(path), 240, T.garland.thick, 6, false),
-    T.garland.color,
-  );
-  // the baubles, hanging from each tier's tips
-  let seed = 1225;
-  const rnd = () => {
-    seed = (seed * 16807) % 2147483647;
-    return (seed - 1) / 2147483646;
-  };
-  let bi = 0;
-  tiers.forEach((t, k) => {
-    const count = T.baubles.count[k];
-    for (let j = 0; j < count; j++) {
-      const a = ((j + rnd() * 0.6) / count) * Math.PI * 2 + k * 0.7;
-      const r = t.r * 0.9;
-      const s = Math.max(0.085, T.baubles.size * t.r * (0.85 + rnd() * 0.3));
-      const c = T.baubles.colors[bi++ % T.baubles.colors.length];
-      const [x, z] = [tx + r * Math.cos(a), tz + r * Math.sin(a)];
-      pieces.put(new SphereGeometry(s, 12, 9), c, at(x, t.y - 0.02 - s * 0.6, z));
-      pieces.put(
-        new CylinderGeometry(s * 0.3, s * 0.3, s * 0.3, 8),
-        T.baubles.cap,
-        at(x, t.y - 0.02 + s * 0.45, z),
-      );
-    }
-  });
-  // the star on top, its face to the opening view, and its glow
+
   const star = new Shape();
   const { outer, inner } = T.star;
   for (let i = 0; i < 10; i++) {
@@ -267,16 +312,51 @@ function christmasTree(pieces: Pieces, glows: Glows) {
     (n) => mix(T.star.color, T.star.shine, Math.max(0, n.y) * 0.3),
     at(tx, top + outer * 0.75, tz).multiply(new Matrix4().makeRotationY(Math.PI / 4)),
   );
-  glows.add(tx, top + outer * 0.75, tz, T.star.light, T.star.glow, T.star.twinkle);
-  // the fairy lights on it, wound the other way
-  for (let i = 0; i < T.lights.count; i++) {
-    const u = (i + 0.5) / T.lights.count;
-    const Y = g1 - 0.15 + (g0 - g1 + 0.15) * u;
-    const a = -u * T.lights.turns * Math.PI * 2 + 1.3;
-    const R = outAt(Y) * 0.92 + 0.07;
-    glows.add(tx + R * Math.cos(a), Y, tz + R * Math.sin(a), warm(), LIGHTS.size * 0.8, twinkle());
+  glows.add(tx, top + outer * 0.75, tz, T.star.light, T.star.glow, T.star.twinkle, true);
+
+  const reach = (Y: number) => {
+    let best = 0;
+    for (const t of tiers) {
+      let p = onTier(t, 0, 0, 1);
+      for (let j = 0; j < 40; j++) {
+        const q = onTier(t, (j + 1) / 40, 0, 1);
+        if ((p[1] - Y) * (q[1] - Y) <= 0 && p[1] !== q[1])
+          best = Math.max(best, p[0] + ((q[0] - p[0]) * (Y - p[1])) / (q[1] - p[1]));
+        p = q;
+      }
+    }
+    return best;
+  };
+  const low = tiers[0].y - tiers[0].h * TIPS.droop * 0.3;
+  const high = top - 0.6;
+  let nb = 0;
+  for (let i = 0; i < FL.strings; i++) {
+    const SY = low + ((high - low) * (i + 0.35)) / FL.strings;
+    const ro = reach(SY);
+    const swags = Math.max(3, Math.round((2 * Math.PI * ro) / FL.swag));
+    const per = Math.max(2, Math.round((2 * Math.PI * ro) / swags / FL.spacing));
+    const sag = FL.sag * (0.5 + (0.5 * ro) / T.radius);
+    const turn0 = i * 0.9;
+    const spot = (f: number, drop: number) => {
+      const a = turn0 + f * Math.PI * 2;
+      const w = (f * swags) % 1;
+      const Y = SY - sag * 4 * w * (1 - w) - drop;
+      const R = reach(Y) + 0.05;
+      return new Vector3(tx + R * Math.cos(a), Y, tz + R * Math.sin(a));
+    };
+    const wire: Vector3[] = [];
+    for (let j = 0; j < swags * 16; j++) wire.push(spot(j / (swags * 16), 0));
+    pieces.put(
+      new TubeGeometry(new CatmullRomCurve3(wire, true), swags * 32, FL.thick, 5, true),
+      FL.wire,
+    );
+    for (let j = 0; j < swags * per; j++) {
+      const b = spot((j + 0.5) / (swags * per), 0.035);
+      const ci = nb++ % FL.colors.length;
+      glows.add(b.x, b.y, b.z, FL.colors[ci], FL.size, 0, false, ci);
+    }
   }
-  // a drift of snow round its foot, and the presents in it
+
   const drift = new SphereGeometry(1.55, 28, 8, 0, Math.PI * 2, 0, Math.PI / 2);
   drift.scale(1, 0.1, 1);
   pieces.put(drift, SNOWMAN.snow, at(tx, yb - 0.01, tz));
@@ -292,7 +372,7 @@ function christmasTree(pieces: Pieces, glows: Glows) {
     );
     pieces.put(new BoxGeometry(w + 0.012, h + 0.012, 0.075), ribbon, M.clone());
     pieces.put(new BoxGeometry(0.075, h + 0.012, d + 0.012), ribbon, M.clone());
-    // the bow: two loops and a knot
+
     for (const side of [-1, 1])
       pieces.put(
         new TorusGeometry(0.075, 0.025, 6, 12),
@@ -303,9 +383,19 @@ function christmasTree(pieces: Pieces, glows: Glows) {
       );
     pieces.put(new SphereGeometry(0.035, 8, 6), ribbon, M.clone().multiply(at(0, h / 2 + 0.03, 0)));
   });
+
+  const grow = (P: number[], k: number) => {
+    P[k] = tx + (P[k] - tx) * T.size;
+    P[k + 1] = yb + (P[k + 1] - yb) * T.size;
+    P[k + 2] = tz + (P[k + 2] - tz) * T.size;
+  };
+  for (let i = from; i < pieces.position.length; i += 3) grow(pieces.position, i);
+  for (let i = glowFrom; i < glows.position.length; i += 3) {
+    grow(glows.position, i);
+    glows.glow[(i / 3) * 4] *= T.size;
+  }
 }
 
-/** A snowman at (x, z), turned from facing the opening view, s big, with its hat and scarf */
 function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[number]) {
   const SM = SNOWMAN;
   const d = FACE.clone().applyAxisAngle(UP, (turn * Math.PI) / 180);
@@ -315,7 +405,7 @@ function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[n
     g.scale(1, squash, 1);
     pieces.put(g, SM.snow, at(x, G + Y * s, z));
   };
-  // a spot on the ball of radius r at height Y: so far up and across from its front
+
   const on = (Y: number, r: number, up: number, across: number) =>
     new Vector3(x, G + Y * s, z)
       .addScaledVector(d, r * s * Math.cos(up) * Math.cos(across))
@@ -323,19 +413,19 @@ function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[n
       .add(new Vector3(0, r * s * Math.sin(up), 0));
   const coal = (c: Vector3, r: number) =>
     pieces.put(new SphereGeometry(r * s, 8, 6), SM.coal, at(c.x, c.y, c.z));
-  // its shadow, a soft blue patch on the snow
+
   const shadow = new CircleGeometry(0.7 * s, 24);
   shadow.rotateX(-Math.PI / 2);
   pieces.put(shadow, SM.shadow, at(x + 0.1 * s, G + 0.012, z - 0.06 * s));
   ball(0.56, 0.47, 0.92);
   ball(0.41, 1.12);
   ball(0.3, 1.63);
-  // coal buttons, eyes and a smile
+
   for (const u of [-0.15, 0.05, 0.25]) coal(on(1.12, 0.41, u / 0.41, 0), 0.045);
   for (const u of [-0.32, 0.32]) coal(on(1.63, 0.3, 0.28, u), 0.035);
   for (let m = 0; m < 5; m++)
     coal(on(1.63, 0.3, -0.25 - 0.08 * Math.sin((m / 4) * Math.PI), -0.36 + m * 0.18), 0.022);
-  // the carrot nose
+
   const nose = new ConeGeometry(0.055 * s, 0.32 * s, 10);
   nose.rotateX(Math.PI / 2);
   const tip = on(1.63, 0.3, 0.04, 0);
@@ -346,7 +436,7 @@ function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[n
       .multiply(new Matrix4().lookAt(new Vector3(), d.clone().negate(), UP))
       .multiply(at(0, 0, 0.14 * s)),
   );
-  // the scarf round its neck, and its end hanging down the front
+
   const wrap = new TorusGeometry(0.27 * s, 0.07 * s, 8, 24);
   wrap.rotateX(Math.PI / 2);
   pieces.put(wrap, scarf, at(x, G + 1.4 * s, z));
@@ -358,7 +448,7 @@ function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[n
       .multiply(new Matrix4().makeRotationY(Math.atan2(d.x, d.z) + 0.5))
       .multiply(new Matrix4().makeRotationZ(0.15)),
   );
-  // twig arms, up and out to either side
+
   for (const sd of [-1, 1]) {
     const from = new Vector3(x, G + 1.18 * s, z).addScaledVector(side, sd * 0.36 * s);
     const dir = side
@@ -391,7 +481,7 @@ function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[n
       ),
     );
   }
-  // its hat
+
   const hy = G + 1.84 * s;
   if (hat === 0) {
     pieces.put(new CylinderGeometry(0.3 * s, 0.3 * s, 0.035 * s, 20), SM.hat, at(x, hy, z));
@@ -418,17 +508,11 @@ function snowman(pieces: Pieces, [x, z, turn, s, hat, scarf]: (typeof SNOWMEN)[n
   }
 }
 
-/**
- * Bulbs along the top of a ring of wall round (cx, cz), r out, wherever its bricks stand (`bricks`:
- * each brick's corners, x, height and z): each stretch evenly strung, drooping between hooks, from
- * its top
- */
 function wallLights(glows: Glows, cx: number, cz: number, r: number, bricks: Brick[][]) {
   const L = LIGHTS;
   const bins = new Uint8Array(360);
   let top = G;
   for (const brick of bricks) {
-    // (the degrees round the ring it spans, from its first corner's)
     if (brick.some(([x, , z]) => Math.abs(Math.hypot(x - cx, z - cz) - r) > WALL_OFF)) continue;
     const ref = Math.atan2(brick[0][2] - cz, brick[0][0] - cx);
     let [a0, a1] = [Infinity, -Infinity];
@@ -451,7 +535,6 @@ function wallLights(glows: Glows, cx: number, cz: number, r: number, bricks: Bri
   if (start === 360) start = 0;
   let run: number[] = [];
   for (let k = 0; k <= 360; k++) {
-    // (each bin by how far it is round from start, so a stretch over the 0° line stays in one piece)
     if (k < 360 && bins[(start + k) % 360]) {
       run.push(start + k);
       continue;
@@ -480,19 +563,17 @@ function wallLights(glows: Glows, cx: number, cz: number, r: number, bricks: Bri
 
 type Brick = [x: number, y: number, z: number];
 
-/** The plaza wall's bricks (as PlazaWall.tsx builds it, in the site's units) */
 function plazaBricks(): Brick[][] {
   return brickRing(0, 0, RADIUS, "#000000", 4242, stretchesFrom(PIECES, OPEN)).flatMap(
     ({ corners }) => {
       const zs = corners.map((p) => p[2]);
-      // (the wall's own bricks, not the taller gateposts)
+
       if (Math.max(...zs) - Math.min(...zs) > WALL_HIGHEST) return [];
       return [corners.map((p): Brick => [p[0], p[2] - BRICK_GROUND, p[1]])];
     },
   );
 }
 
-/** A city wall's ring: the middle of its bricks' distances from the city's middle */
 function ringOf(cx: number, cz: number, bricks: Brick[][]) {
   const d = bricks
     .flat()
@@ -502,15 +583,19 @@ function ringOf(cx: number, cz: number, bricks: Brick[][]) {
   return d.length ? d[Math.floor(d.length / 2)] : 0;
 }
 
-const GLOW_VERTEX = /* glsl */ `
+const FL = TREE_LIGHTS;
+const GLOW_VERTEX = `
   attribute vec3 tint;
-  attribute vec3 glow;
+  attribute vec4 glow;
+  attribute float chase;
   uniform float uTime;
   uniform float uScale;
   uniform float uLeast;
   ${WAVE_GLSL}
   varying vec3 vTint;
   varying float vLit;
+  varying float vBulb;
+  varying float vChase;
   void main() {
     vec3 p = position;
     float rise = waveRise(p.xz);
@@ -518,26 +603,34 @@ const GLOW_VERTEX = /* glsl */ `
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     vLit = glow.z > 0.0 ? 0.62 + 0.38 * sin(uTime * glow.z + glow.y) : 1.0;
+    vChase = step(0.0, chase);
+    if (chase >= 0.0) {
+      float turn = mod(uTime / ${FL.step.toFixed(2)} - chase, ${FL.colors.length.toFixed(1)});
+      vLit = ${FL.dim.toFixed(2)} + ${(1 - FL.dim).toFixed(2)} * smoothstep(0.0, 0.6, turn) * (1.0 - smoothstep(1.0, 1.6, turn));
+    }
     vTint = tint;
+    vBulb = glow.w;
     gl_PointSize = max(glow.x * uScale / -mv.z, uLeast) * (0.8 + 0.3 * vLit) * step(0.5, rise);
   }
 `;
-// a coloured bulb, brighter in the middle as it twinkles, and its glow round it
-const GLOW_FRAGMENT = /* glsl */ `
+
+const GLOW_FRAGMENT = `
   varying vec3 vTint;
   varying float vLit;
+  varying float vBulb;
+  varying float vChase;
   void main() {
     float d = length(gl_PointCoord - 0.5) * 2.0;
     if (d > 1.0) discard;
-    float bulb = 1.0 - smoothstep(0.42, 0.55, d), hot = 1.0 - smoothstep(0.0, 0.3, d), halo = (1.0 - d) * (1.0 - d);
-    vec3 c = mix(vTint * (0.75 + 0.35 * vLit), vec3(1.0, 0.98, 0.9), hot * 0.7 * vLit);
-    gl_FragColor = vec4(c, max(bulb, halo * 0.45 * vLit));
+    float bulb = vBulb * (1.0 - smoothstep(0.42, 0.55, d)), hot = vBulb * (1.0 - smoothstep(0.0, 0.3, d)), halo = (1.0 - d) * (1.0 - d);
+    vec3 c = mix(vTint * mix(0.75 + 0.35 * vLit, 0.7 + 0.6 * vLit, vChase), vec3(1.0, 0.98, 0.9), hot * 0.7 * vLit);
+    gl_FragColor = vec4(c, max(bulb, halo * (0.45 + 0.45 * vChase) * vLit));
     #include <colorspace_fragment>
   }
 `;
 
 const S = SNOWFALL;
-const SNOW_VERTEX = /* glsl */ `
+const SNOW_VERTEX = `
   attribute vec4 seed;
   uniform float uTime;
   uniform vec3 uCenter;
@@ -548,8 +641,6 @@ const SNOW_VERTEX = /* glsl */ `
   varying float vAlpha;
   void main() {
     float B = uBox, H = uBox * ${S.high.toFixed(3)}, fall = mix(${S.fall[0].toFixed(1)}, ${S.fall[1].toFixed(1)}, seed.w);
-    // each flake on a grid of boxes laid over the world, drifting and falling; the box round the spot
-    // the camera looks at shows it
     vec2 wind = vec2(0.70710678, -0.70710678) * ${S.drift[0].toFixed(4)} + vec2(0.70710678, 0.70710678) * ${S.drift[1].toFixed(4)};
     vec2 w = seed.xz * B + wind * B * uTime
       + vec2(sin(uTime * (0.5 + seed.w) + seed.x * 40.0), cos(uTime * (0.4 + seed.y) + seed.z * 30.0)) * B * ${S.sway.toFixed(4)};
@@ -566,7 +657,7 @@ const SNOW_VERTEX = /* glsl */ `
       * (1.0 - 0.75 * smoothstep(uFog.x, uFog.y, -mv.z));
   }
 `;
-const SNOW_FRAGMENT = /* glsl */ `
+const SNOW_FRAGMENT = `
   uniform vec3 uColor;
   uniform float uShow;
   varying float vAlpha;
@@ -578,7 +669,6 @@ const SNOW_FRAGMENT = /* glsl */ `
   }
 `;
 
-/** Christmas in the world: only in winter */
 export function Winter() {
   return isWinter() ? <Christmas /> : null;
 }
@@ -594,9 +684,9 @@ function Christmas() {
     const lights = new Glows(still);
     christmasTree(pieces, lights);
     for (const q of SNOWMEN) snowman(pieces, q);
-    // the walls' fairy lights: the plaza's, and each city's (its bricks in world-props.glb's walls)
+
     wallLights(lights, 0, 0, RADIUS, plazaBricks());
-    // (each of the walls' triangles as a brick)
+
     const bricks: Brick[][] = [];
     const p = new Vector3();
     for (const part of partsNamed("walls")) {
@@ -622,7 +712,8 @@ function Christmas() {
     const g = new BufferGeometry();
     g.setAttribute("position", new Float32BufferAttribute(lights.position, 3));
     g.setAttribute("tint", new Float32BufferAttribute(lights.tint, 3));
-    g.setAttribute("glow", new Float32BufferAttribute(lights.glow, 3));
+    g.setAttribute("glow", new Float32BufferAttribute(lights.glow, 4));
+    g.setAttribute("chase", new Float32BufferAttribute(lights.chase, 1));
     const points = new Points(
       g,
       ownWave(
@@ -650,11 +741,11 @@ function Christmas() {
 
   const flakes = useMemo(() => {
     if (still) return null;
-    // (seeded, so the flakes fall the same way every visit)
+
     const random = rng(S.seed);
     const seed = new Float32Array(S.count * 4).map(() => random());
     const g = new BufferGeometry();
-    // (three.js wants a position; where a flake is comes from its seed)
+
     g.setAttribute("position", new Float32BufferAttribute(new Float32Array(S.count * 3), 3));
     g.setAttribute("seed", new Float32BufferAttribute(seed, 4));
     const points = new Points(
@@ -695,7 +786,6 @@ function Christmas() {
     [decor, glows, look, flakes],
   );
 
-  // each frame: the time, how big a map unit is on screen, and the snow's box round the spot the camera looks at
   const glowing = useRef<Points>(null);
   const falling = useRef<Points>(null);
   const toward = useRef(new Vector3());
@@ -723,7 +813,7 @@ function Christmas() {
     fu.uDpr.value = gl.getPixelRatio();
     fu.uBox.value = box;
     fu.uCenter.value.set(aim.x, G, aim.z);
-    // (none while the opening waits on its paper; it comes in as the opening's wave sets off)
+
     const show = WAVE_UNIFORMS.waveR.value > 0 ? 1 : 0;
     fu.uShow.value += (show - fu.uShow.value) * Math.min(1, (delta * 1000) / S.comeIn);
     const fog = scene.fog as { near: number; far: number } | null;

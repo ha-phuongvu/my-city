@@ -15,12 +15,6 @@ import {
   UNTILT,
 } from "../../constants/cities/comic/Kamishibai.constants";
 
-// Comic City's kamishibai theatre: while the city is pointed at, its doors swing shut over the title
-// card, stay shut a moment, then open on it again: the side doors first and the top one folding down
-// over them, then the other way round (SHUTTING). After a pause on the card they shut again, until the
-// pointer leaves; then they finish opening and stay open. The model is built open.
-
-/** Comic City's kamishibai theatre, its doors closing and opening again */
 export function Kamishibai(motion: MotionProps) {
   const { model, part, toModel } = useParts("/models/kamishibai.glb");
   const play = usePlayWhilePointed(MOVE, motion, AGAIN);

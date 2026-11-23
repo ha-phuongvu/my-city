@@ -30,13 +30,6 @@ import {
   TUNE,
 } from "../../constants/cities/music/Piano.constants";
 
-// While Music City is pointed at, its grand piano plays a short tune over and over, a key at a time
-// (the prototype's frames: keys 3, 5, 7, 5, 10, 8, 6, 4 at 300 ms each), and ♪s rise over it and
-// fade, one setting off every 1.2 s. A pressed key is drawn as the prototype draws it: a slightly
-// taller key over the white keys, in shade. Once the pointer leaves, the tune plays to its end and
-// the ♪s already rising go on, but no more set off.
-
-/** A ♪ in the map's deep red with a thin white edge, as on the map */
 function glyph(text: string): CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 128;
@@ -55,15 +48,13 @@ function glyph(text: string): CanvasTexture {
   return texture;
 }
 
-/** Music City's grand piano, playing its little tune while the city is pointed at */
 export function Piano(motion: MotionProps) {
   const { model, toModel } = useParts("/models/piano.glb");
   const light = useRoomLight();
   const key = useRef<Mesh>(null);
   const notes = useRef<(Sprite | null)[]>([]);
   const tune = usePlayWhilePointed(TUNE.length * NOTE_TIME, motion, AGAIN);
-  // how long the ♪s have been setting off (undefined while none are rising), and when the pointer left
-  // (undefined while it stays)
+
   const float = useRef<number | undefined>(undefined);
   const left = useRef<number | undefined>(undefined);
   const shape = useMemo(
@@ -99,7 +90,6 @@ export function Piano(motion: MotionProps) {
   );
 
   useFrame((_, delta) => {
-    // the key being played, if any
     const t = tune();
     if (motion.at === undefined) {
       if (motion.pointing) {
@@ -125,8 +115,7 @@ export function Piano(motion: MotionProps) {
         );
       }
     }
-    // each ♪ rises and drifts off to the right, turning a little, fading in quickly and out slowly,
-    // then sets off again from the piano (unless it would set off after the pointer has gone)
+
     NOTES.forEach((note, i) => {
       const sprite = notes.current[i];
       if (!sprite) return;
@@ -151,7 +140,7 @@ export function Piano(motion: MotionProps) {
   return (
     <group>
       <primitive object={model} />
-      {/* the key and the notes are placed in the prototype's units */}
+
       <group matrixAutoUpdate={false} matrix={toModel}>
         <mesh ref={key} geometry={shape} material={shade} visible={false} />
         {looks.map((look, i) => (

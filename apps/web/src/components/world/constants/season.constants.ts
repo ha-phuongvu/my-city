@@ -1,13 +1,13 @@
-// The fixed values season.ts works with: which months are which season, and where the testing switch keeps
-// its choice.
+// The fixed values season.ts works with: which months are which season. The season always comes from
+// the visitor's date; there is no switch.
 
-// the two seasons the world can be drawn in (the value is what the testing switch keeps in the browser)
+// the two seasons the world can be drawn in
 export enum Season {
   Summer = "summer",
   Winter = "winter",
 }
 
-// the seasons, in the order the testing switch shows them (SeasonSwitch.tsx)
+// every season, in the order their months are looked through
 export const SEASONS: Season[] = [Season.Summer, Season.Winter];
 
 // the months each season is shown (0 is January): summer April to June, winter October to December
@@ -18,6 +18,3 @@ export const SEASON_MONTHS: Record<Season, number[]> = {
 
 // the season shown in the months that belong to neither
 export const FALLBACK = Season.Summer;
-
-// in development, the season picked on the testing switch is kept in the browser under this name
-export const PICKED_KEY = "my-city:season";

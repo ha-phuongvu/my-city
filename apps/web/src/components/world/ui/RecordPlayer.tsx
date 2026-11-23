@@ -5,12 +5,6 @@ import { BACK, DECK, PLAYLIST, PlayState } from "../constants/ui/RecordPlayer.co
 import "./RecordPlayer.css";
 import { useStill } from "../utils/pointing";
 
-// The record player in the corner, as on the prototype: it plays the playlist (RecordPlayer.constants.ts)
-// in turn, round again after the last. Playing, the tonearm swings over and sets down, then the song
-// starts and the record turns; the arm creeps in toward the label as the song goes on. The music starts
-// by itself once the opening's bell has brought the world in, unless the visitor has played or paused
-// it themselves. With no songs yet it says so, its buttons off.
-
 export type PlayerWords = {
   label: string;
   playing: string;
@@ -21,7 +15,6 @@ export type PlayerWords = {
   empty: string;
 };
 
-/** The record player; `start` once the world is in, so the music may start by itself */
 export function RecordPlayer({ words, start }: { words: PlayerWords; start: boolean }) {
   const still = useStill();
   const [song, setSong] = useState(0);
@@ -29,8 +22,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
   const audio = useRef<HTMLAudioElement | null>(null);
   const disc = useRef<SVGGElement>(null);
   const arm = useRef<SVGGElement>(null);
-  // where the record and arm are, how fast the record turns, when the stylus sets down, whether the
-  // visitor chose to play or pause
+
   const deck = useRef({
     angle: 0,
     vel: 0,
@@ -41,11 +33,10 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     last: 0,
   });
   const playing = useRef(false);
-  // (to play once the next song's sound is there)
+
   const goOn = useRef(false);
   const current = PLAYLIST[song];
 
-  // each frame while anything moves: the record's turn, the arm's swing, and the song starting once the stylus is down
   const tick = useCallback(() => {
     const d = deck.current;
     if (d.raf) return;
@@ -62,7 +53,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
       const p = a && a.duration ? Math.min(1, a.currentTime / a.duration) : 0;
       const A = DECK.arm;
       const target = on ? A.start + (A.end - A.start) * p : A.off;
-      // (the arm swings at an easy pace; the record gets up to speed and slows down)
+
       d.armAt = still ? target : d.armAt + (target - d.armAt) * Math.min(1, dt / (DECK.swing / 3));
       const want = on && !still ? DECK.spin : 0;
       d.vel =
@@ -82,7 +73,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     if (!audio.current || playing.current) return;
     playing.current = true;
     setState(PlayState.Playing);
-    // the stylus is set down, then the song starts
+
     deck.current.landing = performance.now() + (still ? 0 : DECK.swing * 1000);
     tick();
   }, [still, tick]);
@@ -96,11 +87,10 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     tick();
   };
 
-  // the song i, ready to play (and playing, if the last one was)
   const load = (i: number, go: boolean) => {
     audio.current?.pause();
     playing.current = false;
-    // (the same song, with only one: from its start)
+
     if (i === song && audio.current) {
       audio.current.currentTime = 0;
       setState(PlayState.Stopped);
@@ -119,8 +109,6 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     play();
   }, [song, play]);
 
-  // the song d on from this one (-1 the one before); back from more than BACK seconds into a song is
-  // this song from its start
   const skip = (d: number) => {
     const a = audio.current;
     if (!a || !PLAYLIST.length) return;
@@ -134,7 +122,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
 
   useEffect(() => {
     const d = deck.current;
-    // (stopped when it goes, so it starts afresh if it comes back; its sound goes with it)
+
     return () => {
       cancelAnimationFrame(d.raf);
       d.raf = 0;
@@ -142,7 +130,6 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     };
   }, []);
 
-  // the music by default, once the world is in; never again once the visitor has played or paused it
   useEffect(() => {
     if (start && !deck.current.chose) play();
   }, [start, play]);
@@ -152,7 +139,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
       className="rp-player"
       role="group"
       aria-label={state === PlayState.Playing ? words.playing : words.label}
-      // (the pointer and the wheel stay on the player, not on the world under it)
+
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
@@ -163,7 +150,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
           ref={audio}
           src={current.src}
           preload="auto"
-          // (the next song, and after the last the first again)
+
           onEnded={() => load((song + 1) % PLAYLIST.length, true)}
         />
       )}

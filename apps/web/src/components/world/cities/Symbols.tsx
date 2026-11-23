@@ -19,10 +19,6 @@ import {
   SHADOW_Y,
 } from "../constants/cities/Symbols.constants";
 
-// Each symbol's own motion, as on the prototype's map: the book turns a page, the piano plays its
-// tune, the kendama swings its ball, the reel turns and the kamishibai shuts and opens its doors.
-// The symbols hang still until their city is pointed at, then play over and over until the pointer
-// leaves: each finishes the round it's on and rests, except the reel, which stops where it is.
 const MOTION: Record<string, ComponentType<MotionProps>> = {
   book: Book,
   piano: Piano,
@@ -31,7 +27,6 @@ const MOTION: Record<string, ComponentType<MotionProps>> = {
   kamishibai: Kamishibai,
 };
 
-/** A soft round blot, dark in the middle and fading to nothing, for the shadows under the symbols */
 function blot(): CanvasTexture {
   const size = 128;
   const canvas = document.createElement("canvas");
@@ -73,7 +68,6 @@ function FloatingSymbol({
 
   return (
     <>
-      {/* the lawn, unseen, so pointing anywhere on it plays the city */}
       <mesh position={[city.center[0], LAWN_Y, city.center[1]]} rotation-x={-Math.PI / 2} {...hit}>
         <circleGeometry args={[LAWN_REACH, 48]} />
         <meshBasicMaterial visible={false} />
@@ -83,7 +77,6 @@ function FloatingSymbol({
           {still || !Moving ? (
             <Model src={src} center rotation-y={CARD_YAW[model]} castShadow={false} />
           ) : (
-            // the models' origin is the middle of their base: lower it so they turn about their middle, as Model's `center` does
             <group rotation-y={CARD_YAW[model]}>
               <group position-y={-modelHeight / 2}>
                 <Moving pointing={pointing} />
@@ -91,7 +84,7 @@ function FloatingSymbol({
             </group>
           )}
         </group>
-        {/* what floats along with it (the piano's bench) */}
+
         {carries.map((c) => (
           <Model
             key={c.model}
@@ -122,7 +115,6 @@ function FloatingSymbol({
   );
 }
 
-/** Each city's giant symbol, floating over its lawn and turned toward the fountain, playing while the city is pointed at */
 export function Symbols() {
   const still = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
   const shadowTexture = useMemo(() => blot(), []);

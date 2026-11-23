@@ -7,6 +7,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   DoubleSide,
+  type Group,
   type Mesh,
   MeshStandardMaterial,
   type Object3D,
@@ -17,6 +18,9 @@ import { useCityHit, useInCity } from "../../utils/cityPointing";
 import { through } from "../../utils/cycle";
 import { usePlayWhilePointed, useStill } from "../../utils/pointing";
 import { useParts } from "../../utils/useParts";
+import { isWinter } from "../../utils/season";
+import { Cover, Flakes } from "../../utils/snowCover";
+import { setSnowCover } from "../../utils/wave";
 import type { SceneryPlacement } from "../../constants/cities/sceneryLayout.constants";
 import {
   AGAIN,
@@ -28,30 +32,20 @@ import {
   STAGES,
 } from "../../constants/cities/music/FlowerBeds.constants";
 
-// Music City's five flower beds round the piano. Pointing anywhere in Music City grows them all, as
-// the prototype's curvedBed draws them growing (its CROP_STAGES.bloom, a stage every 125 ms over
-// 1.5 s): cut back to little stubs, the plants come up from their feet to full size by 0.6, buds show
-// from 0.45, green and small, then swell and colour until every blossom is open at 0.9. They stand in
-// flower a moment, then grow again, for as long as the pointer stays in the city; once it leaves they
-// finish growing and stay in flower.
-
 type Rgb = { r: number; g: number; b: number };
 
-/** One primitive of the plants: where its vertices start, and what each grows from */
 type Growing = {
   mesh: Mesh;
   positions: BufferAttribute;
   base: Float32Array;
-  /** each vertex's plant's foot (x, y, z) */
+
   foot: Float32Array;
-  /** for blossoms, each vertex's solid's middle, which it opens about */
+
   middle?: Float32Array;
 };
 
-/** Its colours: each material's own (in sRGB), to fade toward the paper and, for blossoms, to bud from */
 type Paint = { material: MeshStandardMaterial; own: Rgb; blossom: boolean };
 
-/** The beds' plants and colours, matched to the model's primitives by bedLayout.ts */
 function plantsOf(model: Object3D) {
   const growing: Growing[] = [];
   const paints: Paint[] = [];
@@ -66,7 +60,7 @@ function plantsOf(model: Object3D) {
         blossom: !!part?.blossom,
       });
       if (!part || mesh.material.name !== part.material) return;
-      // (its own copy of the shape, as it is reshaped while it grows)
+
       mesh.geometry = mesh.geometry.clone();
       const positions = mesh.geometry.getAttribute("position") as BufferAttribute;
       const count = part.runs.reduce((sum, n, i) => (i % 2 ? sum : sum + n), 0);
@@ -78,7 +72,7 @@ function plantsOf(model: Object3D) {
       for (let r = 0; r < part.runs.length; r += 2) {
         const n = part.runs[r];
         const plant = part.runs[r + 1];
-        // a blossom's middle: the average of its corners, as the prototype's centroid
+
         let mx = 0;
         let my = 0;
         let mz = 0;
@@ -99,7 +93,6 @@ function plantsOf(model: Object3D) {
   return { growing, paints };
 }
 
-/** Where pointing at the beds counts as pointing at Music City: a band 0.3 wider than each bed, as tall as its plants */
 function hitBand({ line, foot, width }: (typeof BED_LINES)[number]): BufferGeometry {
   const n = line.length / 2;
   const position: number[] = [];
@@ -113,7 +106,7 @@ function hitBand({ line, foot, width }: (typeof BED_LINES)[number]): BufferGeome
     const sx = (-dz / l) * (width + 0.3) * 0.5;
     const sz = (dx / l) * (width + 0.3) * 0.5;
     const [x, z] = [line[2 * i], line[2 * i + 1]];
-    // its left and right edges, at its foot and up over its plants
+
     position.push(
       x + sx,
       foot,
@@ -139,7 +132,7 @@ function hitBand({ line, foot, width }: (typeof BED_LINES)[number]): BufferGeome
         index.push(q + c, q + d, q + 4 + c, q + d, q + 4 + d, q + 4 + c);
     }
   }
-  // and its ends
+
   const last = 4 * (n - 1);
   index.push(0, 1, 2, 2, 1, 3, last, last + 2, last + 1, last + 1, last + 2, last + 3);
   const band = new BufferGeometry();
@@ -148,7 +141,6 @@ function hitBand({ line, foot, width }: (typeof BED_LINES)[number]): BufferGeome
   return band;
 }
 
-/** The beds at stage k of their growth (1 in full flower), faded `fade` of the way toward the paper */
 function drawBeds(
   { growing, paints }: ReturnType<typeof plantsOf>,
   k: number,
@@ -164,13 +156,12 @@ function drawBeds(
     if (k >= 1) out.set(base);
     else
       for (let i = 0; i < out.length; i++) {
-        // a blossom opens about its own middle, then the whole plant grows from its foot
         const p = middle ? middle[i] + opens * (base[i] - middle[i]) : base[i];
         out[i] = foot[i] + grow * (p - foot[i]);
       }
     positions.needsUpdate = true;
   }
-  // the buds green at first, taking their colour as they open; everything faded toward the paper
+
   for (const { material, own, blossom } of paints) {
     const bud = blossom ? 0.75 * (1 - open) : 0;
     const c = {
@@ -187,8 +178,78 @@ function drawBeds(
   }
 }
 
-/** Music City's flower beds, growing while the city is pointed at */
-export function FlowerBeds({ model: name, position, yaw, scale, fade }: SceneryPlacement) {
+function alongBed({ line, width }: (typeof BED_LINES)[number]): () => [number, number] {
+  const n = line.length / 2;
+  return () => {
+    const i = Math.min(n - 2, Math.floor(Math.random() * (n - 1)));
+    const u = Math.random();
+    const x = line[2 * i] + (line[2 * i + 2] - line[2 * i]) * u;
+    const z = line[2 * i + 1] + (line[2 * i + 3] - line[2 * i + 1]) * u;
+    const dx = line[2 * i + 2] - line[2 * i];
+    const dz = line[2 * i + 3] - line[2 * i + 1];
+    const l = Math.hypot(dx, dz) || 1;
+    const off = (Math.random() - 0.5) * width;
+    return [x - (dz / l) * off, z + (dx / l) * off];
+  };
+}
+
+export function FlowerBeds(placement: SceneryPlacement) {
+  return isWinter() ? <SnowyBeds {...placement} /> : <GrowingBeds {...placement} />;
+}
+
+function SnowyBeds({ model: name, position, yaw, scale, fade }: SceneryPlacement) {
+  const { model } = useParts(`/models/${name}.glb`);
+  const still = useStill();
+  const pointing = useInCity(CityId.Music);
+  const hit = useCityHit(CityId.Music);
+  const bands = useMemo(() => BED_LINES.map(hitBand), []);
+  const cover = useRef(new Cover());
+  const falling = useRef<Group>(null);
+  const flakes = useMemo(() => BED_LINES.map((bed) => new Flakes(alongBed(bed), bed.foot)), []);
+  const snowy = useRef<MeshStandardMaterial[]>([]);
+  const wasIn = useRef(false);
+  useLayoutEffect(() => {
+    const plants = plantsOf(model);
+    drawBeds(plants, 1, fade, PAPER);
+    snowy.current = plants.paints.map(({ material }) => material);
+  }, [model, fade]);
+  useLayoutEffect(() => {
+    const group = falling.current;
+    if (!group) return;
+    for (const f of flakes) group.add(f.points);
+    return () => {
+      for (const f of flakes) {
+        group.remove(f.points);
+        f.dispose();
+      }
+    };
+  }, [flakes]);
+  useEffect(() => () => bands.forEach((band) => band.dispose()), [bands]);
+
+  useFrame(({ clock }, delta) => {
+    if (pointing && !wasIn.current && !still) cover.current.start();
+    wasIn.current = pointing;
+    const c = cover.current;
+    if (c.step(delta)) for (const m of snowy.current) setSnowCover(m, c.white);
+    for (const f of flakes) f.fall(clock.elapsedTime, c.running);
+  });
+
+  return (
+    <group position={position} rotation-y={yaw} scale={scale}>
+      <primitive object={model} />
+      <group {...hit}>
+        {bands.map((band, i) => (
+          <mesh key={i} geometry={band}>
+            <meshBasicMaterial colorWrite={false} depthWrite={false} side={DoubleSide} />
+          </mesh>
+        ))}
+      </group>
+      <group ref={falling} />
+    </group>
+  );
+}
+
+function GrowingBeds({ model: name, position, yaw, scale, fade }: SceneryPlacement) {
   const { model } = useParts(`/models/${name}.glb`);
   const still = useStill();
   const pointing = useInCity(CityId.Music);

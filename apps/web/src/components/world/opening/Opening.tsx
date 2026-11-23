@@ -63,22 +63,8 @@ import { ownWave, waveAll, waveDone, WAVE_UNIFORMS } from "../utils/wave";
 import { GROUND_Y, PAPER, WAVE } from "../constants/wave.constants";
 import { SUN_AT } from "../constants/core/WorldLights.constants";
 
-// The opening, as the prototype's: like Bruno Simon's portfolio, which opens on a bare floor with a
-// start button and drops its world in once it's pressed. The site opens on a blank sheet of paper with
-// an inkwell on it and a quill standing in it. The quill comes out and writes "Welcome to my world" on
-// the paper in dark-blue ink, as Story City's quill writes its name on its scroll: line by line, the
-// nib going up and down through the letters and lifting between words, then a flourish under it all.
-// A ring round the base of a desk bell fills while the world comes in under the paper (it's there all
-// along, lying flat in the paper's colour: wave.ts), the quill goes back into the inkwell, and the
-// bell's plunger comes up; until it's rung, the bell rings itself now and then. Rung, it dings and goes
-// down into the paper, and a wave runs out from where it stood: as it passes, the world grows up out
-// of the ground and takes its colours, the ink soaks away and the inkwell hops off. When it has passed
-// the edges of the screen the world is simply there, to walk round. With reduced motion nothing is
-// written, hops or grows: the words are on the paper, and the world is there when the bell is rung.
-
-/** How the opening is going: still on (the camera waits), and whether the world has all come in */
 export type Intro = { on: boolean; arrived: boolean };
-/** What the opening says to screen readers, and the bell's name */
+
 export type OpeningWords = {
   enter: string;
   building: string;
@@ -88,9 +74,9 @@ export type OpeningWords = {
 
 type View = { right: Vector3; up: Vector3; away: Vector3; toward: Vector3 };
 type Page = { go: HTMLButtonElement | null; say: HTMLParagraphElement | null; goAt: Group | null };
-// a line of the welcome in the font: where each word's ink starts and ends across it, how many letters
+
 type Hand = { words: [number, number][]; letters: number };
-// a line of ink: how far it's shown, when the quill starts it and how long it takes, where the nib is
+
 type Piece = {
   mesh: Mesh;
   shown: { value: number };
@@ -98,7 +84,7 @@ type Piece = {
   t0: number;
   pen: (a: number) => Vector3;
 };
-// one of the quill's moves: its start and end (ms), where the nib is and how far it has turned to write
+
 type Move = { t0: number; t1: number; f: (x: number) => Vector3; turn: (x: number) => number };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -106,7 +92,6 @@ const easeOut = (x: number) => 1 - (1 - x) ** 3;
 const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
 const back = (x: number) => 1 + 2.7 * (x - 1) ** 3 + 1.7 * (x - 1) ** 2;
 
-// a round shape turned from its outline (across, up), facing out
 function turned(points: number[][]) {
   const g = new LatheGeometry(
     points.map(([x, y]) => new Vector2(x, y)),
@@ -124,7 +109,7 @@ function turned(points: number[][]) {
       sign = Math.sign(N[i] * P[i] + N[i + 2] * P[i + 2]) || 1;
     }
   }
-  // (turned the other way, its faces would look inward: wind them the other way round)
+
   if (sign < 0) {
     const index = g.getIndex();
     if (index)
@@ -138,8 +123,6 @@ function turned(points: number[][]) {
   return g;
 }
 
-// how a part of the bell shines, as a desk bell does: a painted ball (a matcap; `c` its top, middle,
-// underside and the paper's light under it), lit from the upper left like the rest of the opening
 function shineOf(c: string[]) {
   const S = 256;
   const canvas = document.createElement("canvas");
@@ -156,7 +139,7 @@ function shineOf(c: string[]) {
     g.addColorStop(1, c[3]);
     x.fillStyle = g;
     x.fillRect(0, 0, S, S);
-    // (lighter toward the light, darker at the rim, and the light's two glints)
+
     g = x.createRadialGradient(S * 0.34, S * 0.3, 0, S * 0.5, S * 0.5, S * 0.55);
     g.addColorStop(0, "rgba(255,255,255,0.18)");
     g.addColorStop(0.6, "rgba(0,0,0,0)");
@@ -181,8 +164,6 @@ function shineOf(c: string[]) {
   return texture;
 }
 
-// The bell's ding, `at` seconds from now (no sound files: the plunger's tap, two near notes beating a
-// little and the metal's higher rings, dying away); `soft` when it rings itself while it waits
 function ding(audio: AudioContext, at: number, soft: boolean) {
   try {
     if (audio.state === "suspended") void audio.resume();
@@ -216,8 +197,7 @@ function ding(audio: AudioContext, at: number, soft: boolean) {
     pass.connect(gain);
     gain.connect(out);
     tap.start(t0);
-    // (in winter, rung by the visitor, sleigh bells jingle with it: two quick shakes of bright tinkles,
-    // each a few high notes dying fast)
+
     const J = JINGLE;
     if (J && !soft)
       for (let h = 0; h < J.hits; h++) {
@@ -237,15 +217,11 @@ function ding(audio: AudioContext, at: number, soft: boolean) {
           o.stop(th + J.ring + 0.02);
         }
       }
-  } catch {
-    // (no sound, then)
-  }
+  } catch {}
 }
 
 type Keep = <T extends { dispose: () => void }>(x: T) => T;
 
-/** A holly leaf, its stalk at the foot and its tip up local y, its face up local z: a spike at each of
- * three bulges either side, the edges between scooped in, folded along the middle and curled a little */
 function hollyLeaf(keep: Keep) {
   const rows = 32;
   const [len, wide, fold] = DRESS.leaf;
@@ -272,9 +248,6 @@ function hollyLeaf(keep: Keep) {
   return g;
 }
 
-/** In winter the bell is dressed for Christmas: a sprig of holly on its base by the dome, three glossy
- * spiky leaves round a bunch of red berries, and a red bow on the collar (on the dome, so it shivers
- * with it when it rings) */
 function dress(bell: Group, dome: Group, shine: (c: string[]) => MeshMatcapMaterial, keep: Keep) {
   const shiny = (c: string[]) => {
     const m = shine(c);
@@ -289,7 +262,7 @@ function dress(bell: Group, dome: Group, shine: (c: string[]) => MeshMatcapMater
   const az = ((45 + DRESS.at) * Math.PI) / 180;
   const foot = new Vector3(Math.cos(az) * 1.12, 0.34, Math.sin(az) * 1.12);
   const sprig = new Group();
-  // (each leaf lies from the berries outward)
+
   for (const [turn, down] of DRESS.leaves) {
     const a = az + (turn * Math.PI) / 180;
     const dir = new Vector3(Math.cos(a), -down, Math.sin(a)).normalize();
@@ -306,7 +279,7 @@ function dress(bell: Group, dome: Group, shine: (c: string[]) => MeshMatcapMater
     sprig.add(berry);
   }
   bell.add(sprig);
-  // the bow, on the front of the collar: two puffed loops either side of a knot, and two tails hanging
+
   const bow = new Group();
   for (const side of [-1, 1]) {
     const loop = new Mesh(keep(new TorusGeometry(0.1, 0.05, 12, 28)), ribbonLook);
@@ -329,7 +302,7 @@ function dress(bell: Group, dome: Group, shine: (c: string[]) => MeshMatcapMater
 }
 
 const SN = PAPER_SNOW;
-const PAPER_SNOW_VERTEX = /* glsl */ `
+const PAPER_SNOW_VERTEX = `
   uniform float snowTime;
   uniform vec3 snowAt;
   uniform vec2 snowBox;
@@ -348,7 +321,7 @@ const PAPER_SNOW_VERTEX = /* glsl */ `
     vA = snowFade * smoothstep(0.0, 0.04, h) * smoothstep(1.0, 0.85, h) * (0.65 + 0.35 * seed.w);
   }
 `;
-const PAPER_SNOW_FRAGMENT = /* glsl */ `
+const PAPER_SNOW_FRAGMENT = `
   uniform vec3 snowColor;
   uniform vec3 snowRim;
   varying float vA;
@@ -360,8 +333,6 @@ const PAPER_SNOW_FRAGMENT = /* glsl */ `
   }
 `;
 
-/** In winter, snow falling softly over the paper (none with reduced motion): flakes in a box over the
- * ground the camera sees, each falling at its own pace and drifting a little as the wind takes it */
 function paperSnow(keep: Keep) {
   const random = rng(SN.seed);
   const seeds = new Float32Array(SN.count * 4);
@@ -398,7 +369,6 @@ function paperSnow(keep: Keep) {
   return flakes;
 }
 
-// the words, the inkwell and its quill, the bell, and the blots they leave on the paper
 function build(font: Font, light: Texture, view: View) {
   const trash: { dispose: () => void }[] = [];
   const keep = <T extends { dispose: () => void }>(x: T) => {
@@ -419,7 +389,6 @@ function build(font: Font, light: Texture, view: View) {
   const welcome = new Group();
   welcome.userData.noWave = true;
 
-  // the soft blot each thing leaves on the paper
   const blotTexture = keep(
     (() => {
       const canvas = document.createElement("canvas");
@@ -454,10 +423,6 @@ function build(font: Font, light: Texture, view: View) {
     return m;
   };
 
-  // The words. Each line lies flat on the paper, running across the screen and stretched up the paper
-  // so it reads upright. Every point of the ink knows how far along its line it is (`along`, 0 to 1,
-  // leaning with the writing), so a line is shown just as far as the nib has run; and the ink soaks
-  // into the paper as the wave passes. (The ink isn't hazed, and goes on after the soft blots.)
   const onPaper = (x: number, y: number, h: number) =>
     new Vector3()
       .addScaledVector(RIGHT, x)
@@ -494,8 +459,7 @@ function build(font: Font, light: Texture, view: View) {
     welcome.add(mesh);
     return { mesh, shown };
   };
-  // each line, and where the nib is when it's shown as far as `a`: on the edge of the writing at the
-  // small letters' middle, going up and down through each letter, lifted off the paper between words
+
   const resolution = font.data.resolution;
   const pieces: Piece[] = INK.lines.map((L) => {
     const hand = font.data.glyphs[L.glyph] as unknown as Hand;
@@ -538,8 +502,7 @@ function build(font: Font, light: Texture, view: View) {
       },
     };
   });
-  // the flourish under the words: one stroke dipping in the middle and rising to the right, thin where
-  // the nib comes down, widest a little before the middle and thinning to a fine end
+
   {
     const F = FLOURISH;
     const p = [
@@ -596,8 +559,6 @@ function build(font: Font, light: Texture, view: View) {
     });
   }
 
-  // The inkwell beside the words (Story City's: a squat dark-blue glass bottle with a cream label, a
-  // gold lip and the ink in its neck), and the quill standing in it, both in one group on the paper
   const IS = INKWELL.size;
   const DESK = onPaper(INKWELL.at[0], INKWELL.at[1], 0);
   const desk = new Group();
@@ -649,10 +610,6 @@ function build(font: Font, light: Texture, view: View) {
   well.translate(0, 0.93 * IS, 0);
   desk.add(new Mesh(well, standard({ color: INKWELL.ink })));
 
-  // The quill (a big brown feather, darker at its edges and ragged where the barbs part, on a cream
-  // shaft with a silver nib), made with its nib at the foot and its shaft going up, the feather's face
-  // to the camera, leaning as it does when it writes (WRITES). RESTS turns it to how it stands in the
-  // inkwell, nearly upright
   const LQ = QUILL.length;
   const lean = (d: [number, number, number]) => {
     const dir = new Vector3()
@@ -667,9 +624,9 @@ function build(font: Font, light: Texture, view: View) {
   const WRITES = lean(QUILL.write);
   const RESTS = lean(QUILL.rest).multiply(WRITES.clone().invert());
   const NONE = new Quaternion();
-  // the middle of the shaft `t` of the way up it, bending a little toward the feather's narrow side
+
   const spine = (t: number) => new Vector3(-QUILL.bend * LQ * Math.max(0, t - 0.2) ** 2, t * LQ, 0);
-  // a round shaft from t0 to t1 of the way up, r0 thick at the foot and r1 at the top
+
   const tube = (t0: number, t1: number, r0: number, r1: number) => {
     const rows = 16;
     const sides = 12;
@@ -696,9 +653,7 @@ function build(font: Font, light: Texture, view: View) {
     g.computeVertexNormals();
     return g;
   };
-  // the feather: from a quarter of the way up to the top, widest a little above the middle, the far side
-  // narrower; it cups away from the camera and is lighter along the shaft, and here and there the barbs
-  // part in a notch that slants down toward the shaft
+
   const vane = () => {
     const rows = 40;
     const cols = [-0.7, -0.35, 0, 0.3, 0.65, 1];
@@ -743,7 +698,7 @@ function build(font: Font, light: Texture, view: View) {
     keep(g).applyMatrix4(new Matrix4().makeRotationFromQuaternion(WRITES));
     quill.add(new Mesh(g, material));
   }
-  // their blots on the paper, cast away from the sun
+
   const SHADE = new Vector3(-SUN_AT[0] / SUN_AT[1], 0, -SUN_AT[2] / SUN_AT[1]);
   const wellShadow = blot(IS * 2.1, IS * 2.1, 0.22);
   const shaftShadow = blot(1, 1, 0.16);
@@ -753,8 +708,6 @@ function build(font: Font, light: Texture, view: View) {
     .addScaledVector(SHADE, IS * 0.3)
     .setY(0.003);
 
-  // The quill's way: out of the inkwell, over to each line in turn and along it, and once the world is
-  // in, back into the inkwell
   const M = MOVES;
   const REST = DESK.clone().setY(IS * 0.5);
   const OUT = REST.clone().add(
@@ -791,8 +744,7 @@ function build(font: Font, light: Texture, view: View) {
   move(M.back, arc(pieces[pieces.length - 1].pen(1), OUT, M.lift), turning(1, 0.4));
   move(M.dip, arc(OUT, REST, 0), turning(0.4, 0));
   const DONE = T;
-  // everything as it is `tq` into the writing: each line shown as far as the nib has run along it, the
-  // quill where its move puts it, and the blots of its shaft and its feather; gives where the nib is
+
   const shaft = new Vector3();
   const across = new Vector3();
   const SHAFT = UP.clone().applyQuaternion(WRITES);
@@ -820,9 +772,6 @@ function build(font: Font, light: Texture, view: View) {
     return nib;
   };
 
-  // The bell, a desk bell as on a hotel's front desk: a round glossy black base, a yellow dome on it
-  // with its rim flared like a bell's, and on the dome's top a chrome collar with the plunger in it, a
-  // thin rod with a flat cap. The ring that fills while the world comes in runs round the base's top
   const BC = BELL.colors;
   const shine = (c: string[]) => keep(new MeshMatcapMaterial({ matcap: keep(shineOf(c)) }));
   const bell = new Group();
@@ -845,7 +794,7 @@ function build(font: Font, light: Texture, view: View) {
     shine(BC.black),
     bell,
   );
-  // (the dome: its rim flared, with a bead round it, then a ball a little flattened)
+
   const arch = [
     [1.0, 0.31],
     [1.05, 0.35],
@@ -911,8 +860,7 @@ function build(font: Font, light: Texture, view: View) {
   const bellShadow = blot(R * 3.1, R * 3.1, 0.24);
   bellShadow.position.y = 0.003;
   welcome.add(bell);
-  // the rings that run out over the paper from the bell's foot each time it rings (two, so one rung by
-  // the visitor can run while the last one it rang itself is still going; always drawn, clear when idle)
+
   const pulses = [0, 1].map(() => {
     const m = new Mesh(
       keep(new RingGeometry(1, 1.045, 96, 1)),
@@ -932,8 +880,6 @@ function build(font: Font, light: Texture, view: View) {
     return m;
   });
 
-  // the points that have to be on the screen: the words, the bell, the inkwell and the quill standing in
-  // it (`set`), and the quill all along its way as it writes (`swing`)
   const set: Vector3[] = [];
   const swing: Vector3[] = [];
   for (const p of pieces) {
@@ -984,8 +930,6 @@ function build(font: Font, light: Texture, view: View) {
   };
 }
 
-// how the points lie on the screen, as the camera sees them (-1 to 1 across and up): their middle and
-// half spread, and how far the farthest is from the middle `around`
 function spread(
   camera: PerspectiveCamera,
   root: Group,
@@ -1011,17 +955,12 @@ function spread(
   };
 }
 
-/**
- * The welcome and how it plays: the quill writes, the ring fills as the world comes in, the bell's
- * plunger comes up and it rings itself until it's rung; rung, it sinks away, the wave runs out and the
- * inkwell hops off
- */
 function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
   const parts = build(font, light, view);
   const { welcome, desk, bell, dome, knob, ring, pulses, shadows, writeAt, WRITTEN, DONE, box } =
     parts;
   const B = BELL;
-  // (in winter, the snow falling on the paper)
+
   const flakes =
     isWinter() && !still
       ? paperSnow((x) => {
@@ -1046,17 +985,14 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     near: 1,
     far: 1,
     end: 0,
-    // where the quill had got to on its way back into the inkwell when the bell was rung
+
     q0: 0,
-    // the bell: when it was last rung, whether by the visitor (it stays down), which ring runs next
+
     rung: -1e9,
     held: false,
     next: 0,
   };
 
-  // The sound: starting it takes the browser a moment, so it's started where that isn't seen (while the
-  // world comes in, if the page may make sounds by then, or as the pointer or a key goes down on the
-  // bell). The bell only rings itself aloud once the visitor has clicked or pressed a key on the page.
   let audio: AudioContext | null = null;
   function wake(may: boolean) {
     const active = navigator.userActivation?.hasBeenActive;
@@ -1067,8 +1003,7 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
       audio = null;
     }
   }
-  // rung at `now`, by the visitor or by itself while it waits (`soft`): the plunger goes down and hits,
-  // the bell dings, and a ring runs out from it
+
   function strike(now: number, soft: boolean) {
     s.rung = now;
     s.held = !soft;
@@ -1076,9 +1011,7 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     if (audio) ding(audio, B.hit / 1000, soft);
     pulses[s.next++ % pulses.length].userData.then = now + B.hit;
   }
-  // the plunger, the dome and the rings at `now`: gives how far the plunger is pushed down (1 at the hit;
-  // it springs back past where it rests and settles, or stays down if the visitor rang it); the dome
-  // shivers as it rings, and each ring spreads and fades
+
   function ringing(now: number) {
     const x = now - s.rung;
     const y = x - B.hit;
@@ -1101,8 +1034,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     return down;
   }
 
-  // sized to the screen and stood in the middle of it (found by trying: the set brought to the middle of
-  // the screen and scaled to fill it, the quill's swing kept on the screen), where the wave will start
   function fit(camera: PerspectiveCamera, width: number, height: number) {
     if (s.phase === Phase.Go || s.phase === Phase.Done || !width || !height) return;
     camera.updateMatrixWorld();
@@ -1134,7 +1065,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     WAVE_UNIFORMS.waveC.value.set(welcome.position.x, welcome.position.z);
   }
 
-  // how far over the ground the screen reaches from the bell, at these points on it
   function reachAt(camera: PerspectiveCamera, points: [number, number][]) {
     let far = 0;
     const v = new Vector3();
@@ -1148,14 +1078,12 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     return far;
   }
 
-  // the wave's reach, `t` ms on: out to the screen's lower edges by `near`, on to its top corners by `far`
   function waveAt(t: number) {
     const { near: a, far: b } = PRESSED.wave;
     if (t <= a) return s.near * (t / a) ** 0.75;
     return s.near * (t / a) ** (Math.log(s.far / s.near) / Math.log((a + b) / a));
   }
 
-  /** Rung: true if that's the end of it (with reduced motion the world is simply there) */
   function press(camera: PerspectiveCamera, page: Page) {
     if (s.phase !== Phase.Ready) return false;
     s.phase = Phase.Go;
@@ -1187,8 +1115,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     return false;
   }
 
-  /** The snow over the ground the camera sees (narrower on a narrow screen, so the flakes aren't spread
-   * thin past its sides), sized for the screen's height in pixels, thinning away once the wave sets off */
   function snowFalls(camera: PerspectiveCamera, pixelsHigh: number, now: number, t: number) {
     const u = (flakes!.material as ShaderMaterial).uniforms;
     camera.getWorldDirection(look);
@@ -1202,7 +1128,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     u.snowFade.value = s.phase === Phase.Done ? 0 : 1 - clamp01(tw / SN.fade);
   }
 
-  /** On a frame: true once it's all over */
   function step(
     camera: PerspectiveCamera,
     height: number,
@@ -1216,15 +1141,13 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     const dt = Math.min(60, now - (s.last || now));
     s.last = now;
     if (flakes) snowFalls(camera, height * ratio, now, t);
-    // the quill writes the words; once they're written the ring fills as the world comes in, and when
-    // it's in (as the plunger comes up) the quill goes back into the inkwell
+
     if (s.phase === Phase.Write && (still || t >= WRITTEN)) {
       s.phase = Phase.Build;
       s.goal = FILLING.building;
       wake(false);
     }
-    // (once the bell is rung the quill hurries back into the inkwell, if it isn't there yet, so the two go
-    // off together)
+
     writeAt(
       still
         ? DONE
@@ -1237,7 +1160,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
               : WRITTEN + now - s.tr,
     );
     if (s.phase === Phase.Build || s.phase === Phase.Ready) {
-      // a little at first, then as much as has come in, then all of it
       if (s.phase === Phase.Build) {
         const { loaded, total } = useProgress.getState();
         s.goal = arrived ? 1 : Math.max(FILLING.building, total ? (0.9 * loaded) / total : 0);
@@ -1254,8 +1176,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
       }
     }
     if (s.phase === Phase.Ready) {
-      // the plunger comes up and bobs a little while the bell waits; pointed at, the bell grows a little
-      // and the plunger comes up a little more. Until it's rung, it rings itself, one ding at a time
       const up = still ? 1 : back(clamp01((now - s.t) / READY.rise));
       const bob = still ? 0 : Math.sin(now / READY.bobMs) * READY.bob;
       s.hoverK += ((s.hover ? 1 : 0) - s.hoverK) * Math.min(1, dt / READY.hoverMs);
@@ -1267,8 +1187,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
       }
     }
     if (s.phase === Phase.Go) {
-      // rung: the plunger stays down as the bell rings, then the bell rises a touch and drops down into
-      // the paper, a little smaller as it goes, and is gone (below the ground, which hides it)
       const sink = clamp01((t - B.sink[0]) / B.sink[1]);
       const fall = sink * sink * (1.9 * sink - 0.9);
       bell.position.y = -2.4 * fall;
@@ -1276,15 +1194,13 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
       (shadows.bell.material as MeshBasicMaterial).opacity =
         shadows.bell.userData.opacity * (1 - sink);
       bell.visible = sink < 1;
-      // once it's gone, the wave goes out from where it stood, the world coming up behind it
+
       const whole = PRESSED.wave.near + PRESSED.wave.far;
       const tw = Math.max(0, t - B.sink[0] - B.sink[1]);
       const over = tw >= whole;
       WAVE_UNIFORMS.waveR.value = over ? s.far : waveAt(tw);
       WAVE_UNIFORMS.waveLit.value = 1 - clamp01(tw / whole) ** 4;
-      // the inkwell goes with its quill just after the bell is rung, the way the bell goes after it: it
-      // rises a touch and drops down into the paper, a little smaller as it goes, and is gone (below the
-      // paper, which hides it) before the bell goes (the ink soaks into the paper as the wave passes)
+
       const down = clamp01((t - B.inkwell[0]) / B.inkwell[1]);
       const drop = down * down * (1.9 * down - 0.9);
       desk.position.y = -(INKWELL.size + QUILL.length) * drop;
@@ -1297,10 +1213,9 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
         else if (now - s.end > PRESSED.end) s.phase = Phase.Done;
       }
     }
-    // (the plunger pushed down from wherever it stands as the bell rings, and the rings, go on whatever
-    // is happening)
+
     knob.position.y = B.knob + s.lift - B.press * ringing(now);
-    // the bell on the page sits over the real one, as big as it looks
+
     if (s.phase === Phase.Ready && page.goAt && page.go) {
       const p = page.goAt.getWorldPosition(new Vector3());
       const d = p.distanceTo(camera.position);
@@ -1323,7 +1238,7 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     },
     dispose: () => {
       parts.trash.forEach((x) => x.dispose());
-      // (let the last ding ring out)
+
       const a = audio;
       audio = null;
       if (a) setTimeout(() => void a.close(), 2500);
@@ -1331,7 +1246,6 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
   };
 }
 
-/** Lays the welcome out on the paper and writes it, then runs the wave once the bell is rung */
 function Welcome({
   intro,
   words,
@@ -1350,7 +1264,6 @@ function Welcome({
   const say = useRef<HTMLParagraphElement>(null);
   const goAt = useRef<Group>(null);
   const welcome = useMemo(() => {
-    // the screen's right and up, back over the ground, and toward the camera, as it opens
     camera.updateMatrixWorld();
     const ahead = new Vector3().setFromMatrixColumn(camera.matrixWorld, 2).negate();
     const view = {
@@ -1421,10 +1334,6 @@ function Welcome({
   );
 }
 
-/**
- * The opening over the world: the paper until the world has come in, the world laid flat under the
- * wave, and the welcome. The world can't be pointed at until it's over.
- */
 export function Opening({
   intro,
   words,
@@ -1446,7 +1355,7 @@ export function Opening({
       setEvents({ enabled: true });
     };
   }, [scene, setEvents]);
-  // whatever has come into the world since lies flat under the paper too
+
   useFrame(() => {
     waveAll(scene);
     if (paper.current) paper.current.visible = !intro.current.arrived;
@@ -1469,7 +1378,6 @@ export function Opening({
   );
 }
 
-/** Put last among the world's parts that load: once it's here they all are, made ready to draw */
 export function Arrived({ intro }: { intro: RefObject<Intro> }) {
   const get = useThree((state) => state.get);
   useEffect(() => {

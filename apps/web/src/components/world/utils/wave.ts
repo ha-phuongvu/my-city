@@ -10,20 +10,6 @@ import {
 import { GROUND_Y, PAPER, SNOW, WAVE } from "../constants/wave.constants";
 import { isWinter } from "./season";
 
-// The opening's wave, as the prototype's: until it comes, the world lies flat on the paper in the
-// paper's colour; as a ring `waveR` out from `waveC` passes over a spot, what stands there grows up
-// (overshooting a little and settling) and takes its own colours, with a warm glow along the ring's
-// front while `waveLit` is up. Once the opening is over the ring is so far out that nothing changes.
-//
-// Every material in the world takes it (waveIn): what it draws is laid flat as it's put on screen,
-// and painted over just before the haze. The grass works it out in its own shaders (Grass.tsx).
-//
-// In winter the same patch lays snow on what it draws, by how far each spot faces up, before the wave
-// paints it; except on what's marked `noSnow` (the ground, the water, the floating symbols, and the
-// plants, which carry their snow in their own colours).
-
-// the colours as they land on screen (taken as they are, not turned), since the paint goes on after
-// the colours are turned for the screen
 const onScreen = (hex: string) =>
   new Color().setHex(Number.parseInt(hex.slice(1), 16), LinearSRGBColorSpace);
 const SNOW_UNIFORMS = {
@@ -41,7 +27,7 @@ export const WAVE_UNIFORMS = {
   waveLit: { value: 0 },
 };
 
-export const WAVE_GLSL = /* glsl */ `
+export const WAVE_GLSL = `
   uniform vec2 waveC;
   uniform float waveR;
   uniform float waveW;
@@ -54,9 +40,6 @@ export const WAVE_GLSL = /* glsl */ `
     float wt = clamp((waveR - length(g - waveC)) / waveW, 0.0, 1.0) - 1.0;
     return 1.0 + 2.7 * wt * wt * wt + 1.7 * wt * wt;
   }
-  // (where it's still flat, or the glow doesn't reach, its own colour and the glow are left out rather
-  // than mixed in at nothing: across a triangle laid flat they can come out as no number at all, and
-  // mixing that in, even at nothing, leaves specks)
   vec3 wavePaint(vec3 c, vec2 g) {
     float fd = waveR - length(g - waveC);
     float shown = smoothstep(0.0, 0.45 * waveW, fd);
@@ -67,8 +50,7 @@ export const WAVE_GLSL = /* glsl */ `
   }
 `;
 
-// the point on screen back in the world (the view only turns and moves it), laid down toward the ground
-const FLATTEN = /* glsl */ `
+const FLATTEN = `
   {
     vec3 waveWorld = transpose(mat3(viewMatrix)) * (mvPosition.xyz - viewMatrix[3].xyz);
     vWaveGround = waveWorld.xz;
@@ -79,8 +61,7 @@ const FLATTEN = /* glsl */ `
 `;
 const PROJECTED = "gl_Position = projectionMatrix * mvPosition;";
 
-// the way up the spot faces, in the world (none where the model has no normals)
-const SNOW_VERTEX = /* glsl */ `
+const SNOW_VERTEX = `
   {
     #ifdef USE_INSTANCING
       vec3 snowN = mat3(modelMatrix) * mat3(instanceMatrix) * normal;
@@ -90,25 +71,43 @@ const SNOW_VERTEX = /* glsl */ `
     vSnowUp = dot(snowN, snowN) > 0.0 ? normalize(snowN).y : 0.0;
   }
 `;
-const SNOW_GLSL = /* glsl */ `
+const SNOW_GLSL = `
   uniform vec3 snowLight;
   uniform vec3 snowShade;
+  uniform float snowCover;
   varying float vSnowUp;
+  #ifndef SNOW_HERE
+    #define SNOW_HERE 1.0
+  #endif
 `;
-const SNOW_FRAGMENT = /* glsl */ `
+const SNOW_FRAGMENT = `
   {
     float up = gl_FrontFacing ? vSnowUp : -vSnowUp;
     float f = clamp((up - ${SNOW.from.toFixed(3)}) / ${(SNOW.to - SNOW.from).toFixed(3)}, 0.0, 1.0);
     vec3 snow = mix(snowShade, snowLight, clamp(up, 0.0, 1.0));
-    gl_FragColor.rgb = mix(gl_FragColor.rgb, snow, f * f * (3.0 - 2.0 * f) * ${SNOW.most.toFixed(3)});
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, snow, f * f * (3.0 - 2.0 * f) * ${SNOW.most.toFixed(3)} * snowCover * SNOW_HERE);
   }
 `;
 
 const waved = new WeakSet<Material>();
-// the materials snow doesn't lie on
+
 const bare = new WeakSet<Material>();
 
-/** Lets the wave lay a material flat and paint it (once; it keeps any shader changes it has already) */
+const covers = new WeakMap<Material, { value: number }>();
+
+function snowCoverOf(material: Material) {
+  let cover = covers.get(material);
+  if (!cover) {
+    cover = { value: 1 };
+    covers.set(material, cover);
+  }
+  return cover;
+}
+
+export function setSnowCover(material: Material, value: number) {
+  snowCoverOf(material).value = value;
+}
+
 export function waveIn<M extends Material>(material: M): M {
   if (waved.has(material)) return material;
   waved.add(material);
@@ -122,7 +121,7 @@ export function waveIn<M extends Material>(material: M): M {
     if (hadBefore) before.call(this, shader, renderer);
     Object.assign(shader.uniforms, WAVE_UNIFORMS);
     const snow = snowy();
-    if (snow) Object.assign(shader.uniforms, SNOW_UNIFORMS);
+    if (snow) Object.assign(shader.uniforms, SNOW_UNIFORMS, { snowCover: snowCoverOf(material) });
     const after = `${FLATTEN}${snow ? SNOW_VERTEX : ""}`;
     let vertex = shader.vertexShader;
     if (vertex.includes("#include <project_vertex>"))
@@ -144,22 +143,14 @@ export function waveIn<M extends Material>(material: M): M {
   return material;
 }
 
-/** Marks a material that takes the wave in its own shaders, so waveAll leaves it be */
 export const ownWave = <M extends Material>(material: M): M => {
   waved.add(material);
   return material;
 };
 
-// the sun's shadows are drawn with a plain depth material, so while the world is flat they're drawn
-// flat with this one instead
 const flatShadow = waveIn(new MeshDepthMaterial());
 const lent = new WeakSet<Object3D>();
 
-/**
- * Gives the wave to everything under `root` it hasn't got to yet (whatever has come in since), except
- * what's marked `noWave` and what's under it: the sky and the opening's own letters and button. In
- * winter, what's marked `noSnow` and what's under it takes the wave without the snow.
- */
 export function waveAll(object: Object3D, noSnow = false) {
   if (object.userData.noWave) return;
   const keepBare = noSnow || !!object.userData.noSnow;
@@ -180,7 +171,6 @@ export function waveAll(object: Object3D, noSnow = false) {
   for (const child of object.children) waveAll(child, keepBare);
 }
 
-/** The world is up: the wave goes, and the shadows go back to the sun's own depth material */
 export function waveDone(root: Object3D) {
   WAVE_UNIFORMS.waveR.value = 1e6;
   WAVE_UNIFORMS.waveLit.value = 0;

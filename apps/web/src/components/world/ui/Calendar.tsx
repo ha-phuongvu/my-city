@@ -8,12 +8,6 @@ import "./Calendar.css";
 import { CHECK_EVERY, DATE_LOCALES, SNOW_CAP, TEAR_MS } from "../constants/ui/Calendar.constants";
 import { isWinter } from "../utils/season";
 
-// A tear-off calendar hanging in the top-right corner, as on the prototype. Its page is today: the
-// weekday, the date in the opening's handwriting and the month. At midnight (or whenever the page is
-// looked at again on a later day) yesterday's page tears off and falls away. Tapped, it opens the month,
-// weeks from Monday, today circled in ink; the arrows go to the months before and after, and Today comes
-// back to this one. Esc, a tap elsewhere or the calendar again closes it. In winter snow lies on top.
-
 const hand = Dancing_Script({ weight: "700", subsets: ["latin", "vietnamese"] });
 
 export type CalendarWords = { open: string; previous: string; next: string; today: string };
@@ -23,7 +17,6 @@ const same = (a: Date, b: Date) =>
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
 
-/** The weeks of the month `shown` from Monday, the days of the months either side among them (no row only of the next month's) */
 function weeksOf(shown: Date) {
   const lead = (shown.getDay() + 6) % 7;
   const start = new Date(shown.getFullYear(), shown.getMonth(), 1 - lead);
@@ -63,8 +56,6 @@ export function Calendar({ words, language }: { words: CalendarWords; language: 
   const title = useRef<HTMLHeadingElement>(null);
   const open = shown !== null;
 
-  // a new day: the page tears off (checked each minute, and when the page is looked at again, so a
-  // sleeping computer still turns it)
   const shownDay = useRef(day);
   useEffect(() => {
     const check = () => {
@@ -89,7 +80,6 @@ export function Calendar({ words, language }: { words: CalendarWords; language: 
     return () => clearTimeout(timer);
   }, [torn]);
 
-  // Esc, or a tap anywhere else, closes the month
   useEffect(() => {
     if (!open) return;
     title.current?.focus({ preventScroll: true });
@@ -111,7 +101,7 @@ export function Calendar({ words, language }: { words: CalendarWords; language: 
 
   const monthOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
   const today = new Date();
-  // the weekdays' short names, from Monday (1 January 2024 was a Monday)
+
   const weekdays = Array.from({ length: 7 }, (_, k) => new Date(2024, 0, 1 + k));
   const whole = day.toLocaleDateString(locale, {
     weekday: "long",
@@ -124,7 +114,7 @@ export function Calendar({ words, language }: { words: CalendarWords; language: 
     <div
       ref={box}
       className={open ? "cal-box cal-open" : "cal-box"}
-      // (the pointer and the wheel stay on the calendar, not on the world under it)
+
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
@@ -204,7 +194,6 @@ export function Calendar({ words, language }: { words: CalendarWords; language: 
                     scope="col"
                     abbr={d.toLocaleDateString(locale, { weekday: "long" })}
                   >
-                    {/* (two letters in English, as the prototype's; the language's own narrow names otherwise) */}
                     {language === Language.English
                       ? d.toLocaleDateString(locale, { weekday: "short" }).slice(0, 2)
                       : d.toLocaleDateString(locale, { weekday: "narrow" })}

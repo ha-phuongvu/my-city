@@ -29,21 +29,10 @@ import {
 import { kendamaString } from "../../utils/kendamaString";
 import { CROSS } from "../../constants/kendamaString.constants";
 
-// Game City's kendama: the ball pops off the spike, swings out and down on its string, round behind
-// the handle (well clear of it) and up the other side, and lands back on the spike, then rests (the
-// prototype's KEN_PATH: the ball at 12 spots, then 2.4 s on the spike). Here it glides through those
-// spots, turning as it goes (a cream stripe round it through its hole shows it): on the spike the
-// hole faces down onto it; off it, the hole turns a quarter turn on from the toy's middle, and it
-// lands hole down. It swings again and again while Game City is pointed at, resting a moment on the
-// spike between swings, and once the pointer leaves it lands and rests there. The string is drawn here as mKendama draws it: swinging, it trails behind the ball in a
-// curve and keeps its length; at rest it bows out in front of the spike.
-
-// behind the toy's plane is -y in its own frame (mKendama: B = [across, -behind, up])
 const toy = ([across, up, behind = 0]: Spot) => new Vector3(across, -behind, up);
 const SPOTS = new CatmullRomCurve3(PATH.map(toy), false, "centripetal");
 const UNTOY = new Matrix4().copy(TOY).invert();
 
-/** How the ball is turned at `at` (mKendama's hb, gb, nb: its hole's way out, and two ways square to it) */
 function facing(at: Vector3): Matrix4 {
   const middle = new Vector3(0, 0, CROSS.z).sub(at).normalize();
   const k = Math.min(1, Math.max(0, (at.distanceTo(toy(REST)) - BALL_TURN.from) / BALL_TURN.over));
@@ -60,7 +49,6 @@ function facing(at: Vector3): Matrix4 {
   return new Matrix4().makeBasis(hole, side, hole.clone().cross(side));
 }
 
-/** The string from its knot to the ball, `t` of the way through the swing, in the toy's own frame */
 function string(t: number): TubeGeometry {
   const k = Math.min(1, Math.max(0, Math.min(t, 1 - t) / EASE_IN));
   const pts = kendamaString(SPOTS.getPoint(t), SPOTS.getTangent(t), k * k * (3 - 2 * k));
@@ -73,7 +61,6 @@ function string(t: number): TubeGeometry {
   );
 }
 
-/** Game City's kendama, its ball swinging round on the string */
 export function Kendama(motion: MotionProps) {
   const { model, part, toModel } = useParts("/models/kendama.glb");
   const light = useRoomLight();
@@ -89,7 +76,7 @@ export function Kendama(motion: MotionProps) {
     [light],
   );
   const inToy = useMemo(() => new Matrix4().copy(toModel).multiply(TOY), [toModel]);
-  // (the ball's own frame on the spike, undone, before it's turned and moved to where it is now)
+
   const unrest = useMemo(() => {
     const rest = toy(REST);
     return facing(rest)
@@ -97,7 +84,6 @@ export function Kendama(motion: MotionProps) {
       .multiply(new Matrix4().makeTranslation(-rest.x, -rest.y, -rest.z));
   }, []);
   useEffect(() => {
-    // the model's own string stays put; this one follows the ball
     const own = part("string");
     if (own) own.visible = false;
   }, [part]);
@@ -105,7 +91,7 @@ export function Kendama(motion: MotionProps) {
 
   useFrame(() => {
     const t = motion.at ?? (play() ?? 0) / SWING;
-    // (at rest nothing moves, so nothing needs drawing again)
+
     if (t === drawn.current) return;
     drawn.current = t;
     const at = SPOTS.getPoint(t);

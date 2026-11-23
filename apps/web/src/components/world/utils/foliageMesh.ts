@@ -22,23 +22,6 @@ import type { RGB, V3 } from "../constants/foliageMesh.constants";
 import { SWAY } from "../constants/wind.constants";
 import { isWinter } from "./season";
 
-// The prototype's trees, bushes and hydrangeas, rebuilt in 3D from its own drawing code (leafMass,
-// tree, roundTree, pine, leafyShrub and hydrangea in the "My City Map and Models" page): a darker
-// core covered in small pointed leaves that lie like shingles with their tips lifted, in five or six
-// lime tones; pines are three tiers of needles; hydrangeas carry open five-petal blossoms. As in the
-// prototype; the prototype leaves out the side its camera never sees, which is drawn here too, so the
-// plants are whole when the map's camera turns round them.
-//
-// The work is done in the prototype's map coordinates (z up) and turned into three.js's (y up) at the
-// end. Each face is coloured with the prototype's own sun-and-shade recipe, so the plants look as
-// they do on its map. Each corner also carries its plant's foot and how far it sways (the "sway"
-// attribute), so the whole mesh can lean in the wind plant by plant (utils/wind.ts).
-//
-// In winter, as on the winter prototype, the round, apple and garden trees are bare (bareTree), one
-// round tree in three on the map is a pine instead, the greens are winter's, and snow lies on every
-// plant, thicker where it faces up (snowOn).
-
-// ---------- vectors ----------
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a: V3, k: number): V3 => [a[0] * k, a[1] * k, a[2] * k];
 const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -52,7 +35,6 @@ const unit = (a: V3): V3 => {
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 
-// ---------- colours, as the prototype mixes them ----------
 const hexRgb = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;
 const rgbHex = (c: RGB) =>
   "#" +
@@ -70,7 +52,6 @@ const dk = (c: string, k = 0.3) => rgbHex(mixc(hexRgb(c), [40, 30, 34], k));
 const SNOW_LIGHT = hexRgb(SNOW.light);
 const SNOW_SHADE = hexRgb(SNOW.shade);
 
-/** Snow on a corner (colour c, facing n) of a plant: none on its sides, thicker the flatter it faces up */
 function snowOn(c: RGB, n: V3): RGB {
   const up = n[2];
   const f = Math.min(1, Math.max(0, (up - SNOW.from) / (SNOW.to - SNOW.from)));
@@ -78,7 +59,6 @@ function snowOn(c: RGB, n: V3): RGB {
   return mixc(c, snow, f * f * (3 - 2 * f) * SNOW.most);
 }
 
-/** Warm sun on tops, cool slate-blue shade on the sides (the prototype's shadeRgb) */
 function shade(hex: string, n: V3): RGB {
   const c = hexRgb(hex);
   const t = n[2] * n[2] - n[0] * n[0];
@@ -86,7 +66,6 @@ function shade(hex: string, n: V3): RGB {
   return mixc(lit, SUN, 0.07 * n[1] * n[1]);
 }
 
-/** The prototype's seeded random numbers, so the leaves fall as they do on its map */
 export function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -98,19 +77,17 @@ export function rng(seed: number) {
   };
 }
 
-/** Collects coloured triangles in map coordinates */
 class Mesh {
   positions: number[] = [];
   colors: number[] = [];
   sway: number[] = [];
   fade = 0;
-  /** whether snow lies on what's being drawn (in winter, on every plant) */
+
   snowy = false;
-  /** the foot of the plant being drawn (three.js x and z) and how far it sways, in degrees */
+
   foot: V3 = [0, 0, 0];
   private color = new Color();
 
-  /** A flat polygon facing n, filled from its middle */
   face(pts: V3[], n: V3, hex: string) {
     let rgb = mixc(shade(hex, n), FADE, this.fade);
     if (this.snowy) rgb = snowOn(rgb, n);
@@ -125,7 +102,6 @@ class Mesh {
     }
   }
 
-  /** A polygon shaded smoothly: each corner its own way out and colour, its middle their average */
   smoothFace(pts: V3[], ns: V3[], hexes: string[]) {
     const tone = (n: V3, hex: string) => {
       let rgb = mixc(shade(hex, n), FADE, this.fade);
@@ -161,7 +137,6 @@ class Mesh {
   }
 }
 
-/** A round frustum standing on z0 (trunks, pine cores and the bands of a blob) */
 function frustum(
   m: Mesh,
   cx: number,
@@ -192,7 +167,6 @@ function frustum(
   if (r0 > 0.002) m.face(ring(r0, z0).reverse(), [0, 0, -1], color);
 }
 
-/** A rough low-poly ball of stacked bands */
 function blob(
   m: Mesh,
   cx: number,
@@ -222,7 +196,6 @@ function blob(
   }
 }
 
-/** A square with rounded corners, as a block from z0 to z1 (the core of a clipped hydrangea) */
 function roundedBlock(
   m: Mesh,
   c: V3,
@@ -266,7 +239,6 @@ function roundedBlock(
   );
 }
 
-/** An open flower facing nn: n petals round a centre, radius r */
 function flowerFacing(m: Mesh, c: V3, nn: V3, n: number, r: number, petal: string, centre: string) {
   const e1 = unit(cross(nn, Math.abs(nn[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1]));
   const e2 = cross(nn, e1);
@@ -289,34 +261,28 @@ function flowerFacing(m: Mesh, c: V3, nn: V3, n: number, r: number, petal: strin
 }
 
 type LeafOptions = {
-  /** how many leaves to spread over the surface */
   N?: number;
-  /** leaf length, as a share of the size */
+
   L?: number;
-  /** nothing below this height */
+
   floor?: number;
-  /** narrow needles instead of leaves */
+
   needles?: boolean;
-  /** how far round the back leaves still show */
+
   back?: number;
-  /** how much each leaf's tip lifts off the surface */
+
   lift?: number;
-  /** the size of the dark core under the leaves */
+
   coreK?: number;
-  /** a pine tier: [bottom radius, top radius, bottom z, top z] */
+
   cone?: [number, number, number, number];
-  /** blossoms on the sunny side: [petal, centre] */
+
   flowers?: [string, string];
   bloomP?: number;
   bloomGap?: number;
   bloomR?: number;
 };
 
-/**
- * A mass of small leaves over a darker core, lying on its surface like scales with their tips out,
- * so the edge is fluffy. A Ball is an ellipsoid with half-sizes ax round c0, a Box a clipped square
- * with rounded corners, a Cone a pine tier.
- */
 function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: LeafOptions = {}) {
   const box = shape === CrownShape.Box;
   const cone = shape === CrownShape.Cone ? o.cone : undefined;
@@ -325,7 +291,7 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
   const rnd = rng(
     (Math.round(c0[0] * 977 + c0[1] * 331 + c0[2] * 71 + r * 1000) * 2654435761) >>> 0,
   );
-  // (in the winter greens the leaves are a cool sage, frosted at their lightest)
+
   const winter = isWinter() && (color === P.leaf || color === P.leafDeep || color === P.leafLight);
   const W = WINTER_LEAF;
   const leaf = o.needles
@@ -360,7 +326,6 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
           tint(leaf, "#7fbf34", 0.4),
         ];
 
-  // the shaded inside, just under the leaves, shows through the gaps between them
   if (cone) {
     frustum(
       m,
@@ -392,13 +357,12 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
   const golden = Math.PI * (3 - Math.sqrt(5));
   const L = r * (o.L ?? 0.22);
   const blooms: V3[] = [];
-  // the spots over the surface where a leaf can grow, each with the way the surface faces there
+
   const spots: [V3, V3][] = [];
   for (let i = 0; i < N; i++) {
     let p: V3;
     let n: V3;
     if (cone) {
-      // evenly over the cone: fewer leaves high up where it is narrow
       const [rb, rt, zb, zt] = cone;
       const share = (i + 0.5) / N;
       const hh =
@@ -424,15 +388,11 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
       }
       p = [c0[0] + u[0] * ax[0], c0[1] + u[1] * ax[1], c0[2] + u[2] * ax[2]];
     }
-    // nothing under the ground
+
     if (p[2] >= floor + 0.015) spots.push([p, n]);
   }
-  /**
-   * A leaf at p on the surface facing n (and maybe a blossom). `front` is the side the prototype
-   * draws, toward its camera; the back is drawn too, so the plant is whole when the camera turns.
-   */
+
   const sprout = (p: V3, n: V3, rand: () => number, front: boolean) => {
-    // the leaf points out and down the surface (like shingles), turned a little at random, tip lifted
     const t1 = unit(cross(n, Math.abs(n[2]) > 0.95 ? [1, 0, 0] : [0, 0, 1]));
     const t2 = cross(n, t1);
     const a = (rand() - 0.5) * (o.needles ? 1.2 : 2.2);
@@ -448,7 +408,7 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
     const at = (f: number, sw: number) => add(add(p, mul(dl, l * (f - 0.2))), mul(sd, sw * w));
     let ln = unit(cross(dl, sd));
     if (dot(ln, n) < 0) ln = mul(ln, -1);
-    // on the prototype's side, a leaf turned away from its camera isn't drawn
+
     if (front && dot(ln, VIEW) <= 0.02) return;
     const tone = tones[Math.floor(rand() * tones.length)];
     m.face(
@@ -463,7 +423,7 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
       ln,
       tone,
     );
-    // blossoms scattered over the sunny side (and the same share of the back), kept apart from each other
+
     if (
       o.flowers &&
       (front ? dot(n, VIEW) > 0.15 : dot(n, VIEW) < -0.15) &&
@@ -485,8 +445,7 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
       );
     }
   };
-  // the side the prototype draws first, exactly as it draws it (the same leaves, turns and tones),
-  // then the back it leaves out, with its own random turns
+
   const back = o.back ?? -0.3;
   for (const [p, n] of spots) if (dot(n, VIEW) >= back) sprout(p, n, rnd, true);
   const behind = rng(
@@ -495,7 +454,6 @@ function leafMass(m: Mesh, c0: V3, ax: V3, shape: CrownShape, color: string, o: 
   for (const [p, n] of spots) if (dot(n, VIEW) < back) sprout(p, n, behind, false);
 }
 
-/** The colours of the leaves that shake loose from a round tree of leaf colour `color` (the prototype's tones) */
 export function fallingLeafTones(color: string = P.leaf): string[] {
   const leaf = tint(color, "#9fd23a", 0.55);
   return [
@@ -506,8 +464,6 @@ export function fallingLeafTones(color: string = P.leaf): string[] {
     tint(leaf, "#f0b04c", 0.6),
   ];
 }
-
-// ---------- the plants ----------
 
 function tree(m: Mesh, cx: number, cy: number, z: number, s = 1) {
   frustum(m, cx, cy, z, 0.16 * s, z + 1.25 * s, 0.1 * s, P.trunk, 8);
@@ -557,7 +513,7 @@ function roundTree(m: Mesh, x: number, y: number, z: number, s = 1, c = P.leaf) 
 
 function pine(m: Mesh, x: number, y: number, z: number, s = 1) {
   frustum(m, x, y, z, 0.09 * s, z + 0.45 * s, 0.07 * s, P.trunk, 6);
-  // three tiers of short needles, each a cone of small dark leaves
+
   const tier = (z0: number, r0: number, z1: number, r1: number, c: string, N: number) =>
     leafMass(m, [x, y, 0], [0, 0, 0], CrownShape.Cone, c, {
       cone: [r0, r1, z0, z1],
@@ -590,7 +546,6 @@ function leafyShrub(
   });
 }
 
-/** A round tapered branch from a to b (r0 thick at a, r1 at b), n sided, its sides facing up white with snow */
 function limb(m: Mesh, a: V3, b: V3, r0: number, r1: number, color: string, n = 6) {
   const d = unit(add(b, mul(a, -1)));
   const e1 = unit(Math.abs(d[2]) < 0.95 ? cross(d, [0, 0, 1]) : cross(d, [1, 0, 0]));
@@ -607,17 +562,12 @@ function limb(m: Mesh, a: V3, b: V3, r0: number, r1: number, color: string, n = 
   }
 }
 
-/**
- * A tree bare for the winter (the winter prototype's bareTree), filling about the room of the leafy
- * tree it stands in for; `wide` is the apple tree's, with a shorter trunk and lower, wider limbs
- */
 function bareTree(m: Mesh, x: number, y: number, z: number, s = 1, wide = false) {
   const B = BARE;
   const r = rng((Math.round(x * 97 + y * 53) * 2654435761) >>> 0);
   const top = z + (wide ? 0.6 : 0.72) * s;
   frustum(m, x, y, z, 0.12 * s, top, 0.085 * s, B.bark, 12);
-  // a branch from a along dir, len long and r0 thick, and the branches out of its end (depth 0 a
-  // limb, 1 a branch, 2 a twig)
+
   const grow = (a: V3, dir: V3, len: number, r0: number, depth: number) => {
     const b = add(a, mul(dir, len));
     const r1 = r0 * 0.6;
@@ -634,7 +584,7 @@ function bareTree(m: Mesh, x: number, y: number, z: number, s = 1, wide = false)
       const next = unit(add(add(mul(dir, Math.cos(open)), mul(side, Math.sin(open))), [0, 0, 0.2]));
       grow(b, next, len * (B.shorter[0] + r() * B.shorter[1]), r1, depth + 1);
     }
-    // (the snow lying in a limb's fork)
+
     if (depth === 0) blob(m, b[0], b[1], b[2] + r1 * 0.9, r1 * 2.4, B.snow, 8, 0.2, 0.55);
   };
   const n = B.limbs + (wide || r() < 0.5 ? 1 : 0);
@@ -656,10 +606,6 @@ function bareTree(m: Mesh, x: number, y: number, z: number, s = 1, wide = false)
   );
 }
 
-/**
- * An apple tree's trunk and crown: a round tree with a shorter, sturdier trunk and a wider, lower
- * crown. Its apples are drawn on their own (environment/AppleTrees.tsx), as they can drop.
- */
 function appleTree(m: Mesh, x: number, y: number, z: number, s: number) {
   frustum(m, x, y, z, 0.14 * s, z + 0.66 * s, 0.09 * s, P.trunk, 7);
   const leafy = { back: -0.12, lift: 0.12, coreK: 0.97 };
@@ -678,7 +624,6 @@ function appleTree(m: Mesh, x: number, y: number, z: number, s: number) {
   );
 }
 
-/** An apple, its middle at (cx, cy, zc) and r round: its skin turned round its outline, and its stalk */
 function apple(m: Mesh, cx: number, cy: number, zc: number, r: number, color: string) {
   const n = APPLE_SIDES;
   const prof = APPLE_PROFILE;
@@ -688,15 +633,14 @@ function apple(m: Mesh, cx: number, cy: number, zc: number, r: number, color: st
     cy + out * r * Math.sin(a),
     zc + up * r,
   ];
-  // the way out at each point of the outline, square to it
+
   const outward = prof.map((_, j) => {
     const [p, q] = [prof[Math.max(0, j - 1)], prof[Math.min(last, j + 1)]];
     const [dOut, dUp] = [q[0] - p[0], q[1] - p[1]];
     const l = Math.hypot(dOut, dUp) || 1;
     return [dUp / l, -dOut / l] as [number, number];
   });
-  // the skin at each point: deep red underneath, its own red over most of it, golden round the
-  // hollow and yellow-green inside it, with darker streaks running up its sides
+
   const red = tint(color, APPLE_SKIN.crimson, 0.35);
   const skin = (j: number, i: number) => {
     const up = prof[j][1];
@@ -735,7 +679,7 @@ function apple(m: Mesh, cx: number, cy: number, zc: number, r: number, color: st
       m.smoothFace(pts, ns, hexes);
     }
   }
-  // the stalk, piece by piece, a thin square tube
+
   const path = APPLE_STALK.path.map(([out, up]): V3 => [cx + out * r, cy, zc + up * r]);
   const w = (APPLE_STALK.width * r) / 2;
   for (let k = 0; k + 1 < path.length; k++) {
@@ -760,7 +704,6 @@ function apple(m: Mesh, cx: number, cy: number, zc: number, r: number, color: st
   }
 }
 
-/** One apple, its middle at the origin, `radius` round */
 export function appleGeometry(radius: number, color: string) {
   const m = new Mesh();
   apple(m, 0, 0, GROUND, radius, color);
@@ -781,10 +724,9 @@ function hydrangea(m: Mesh, cx: number, cy: number, z: number, r: number, color:
   );
 }
 
-/** Every tree and garden plant on the map, as one coloured mesh */
 export function buildFoliage(trees: Trees) {
   const m = new Mesh();
-  // three.js (x, y up, z) is the map's (x, z, y up), with the map's ground at z 0.15
+
   const winter = isWinter();
   m.snowy = winter;
   const place = (
@@ -796,7 +738,7 @@ export function buildFoliage(trees: Trees) {
     m.foot = [t.x, t.z, sway];
     draw(t.x, t.z, (t.y ?? 0) + GROUND);
   };
-  // (the colours the map gives its plants are summer's)
+
   const hue = (c: string | undefined) => (c ? (IN_SEASON[c] ?? c) : c);
   for (const t of trees.leafy)
     place(t, SWAY.leafy, (x, y, z) =>
@@ -806,8 +748,7 @@ export function buildFoliage(trees: Trees) {
     place(t, SWAY.round, (x, y, z) =>
       winter ? bareTree(m, x, y, z, t.s) : roundTree(m, x, y, z, t.s, t.color),
     );
-  // an apple tree's two fallen apples lie at its foot, so they barely lean (in winter it's bare, and
-  // its apples are gone)
+
   for (const t of trees.apple)
     place(t, SWAY.apple, (x, y, z) => {
       if (winter) return bareTree(m, x, y, z, t.s, true);
@@ -815,7 +756,7 @@ export function buildFoliage(trees: Trees) {
       for (const [ax, ay, az, color] of t.fallen) apple(m, ax, az, ay + GROUND, 0.065 * t.s, color);
     });
   for (const t of trees.pine) place(t, SWAY.pine, (x, y, z) => pine(m, x, y, z, t.s));
-  // the bushes in the gardens stand on the lawns and sway a little less than the big ones in the grass
+
   for (const t of trees.bush)
     place(t, t.y ? SWAY.garden : SWAY.bush, (x, y, z) =>
       leafyShrub(m, x, y, z, t.s ?? 0.34, CrownShape.Ball, hue(t.color) ?? P.leafLight),

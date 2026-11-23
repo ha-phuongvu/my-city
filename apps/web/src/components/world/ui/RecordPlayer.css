@@ -1,6 +1,3 @@
-/* The record player in the bottom-right corner, over the world (it stays put however the world is
-   turned): a black record with its grooves and red label, a gold tonearm, and under it the song's name
-   and the buttons: the song before, play or pause (one button, showing what it will do), and the next */
 .rp-player {
   position: fixed;
   right: 14px;
@@ -17,6 +14,7 @@
   text-align: center;
   user-select: none;
   cursor: default;
+  zoom: var(--ui, 1);
 }
 .rp-player svg {
   display: block;
@@ -87,24 +85,4 @@
 .rp-player .rp-main svg {
   width: 16px;
   height: 16px;
-}
-@media (max-width: 720px) {
-  .rp-player {
-    width: 118px;
-    right: 8px;
-    bottom: 8px;
-    padding: 8px 8px 7px;
-    border-radius: 14px;
-  }
-  .rp-player button {
-    width: 28px;
-    height: 28px;
-  }
-  .rp-player .rp-main {
-    width: 34px;
-    height: 34px;
-  }
-  .rp-buttons {
-    gap: 6px;
-  }
 }

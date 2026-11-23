@@ -38,24 +38,12 @@ import {
   STREAK,
 } from "../../constants/cities/plaza/Fountain.constants";
 
-// The World Plaza fountain with its water moving, as on the prototype's map (fallsHtml and fxHtml)
-// and in its 3D guide. The water falling from the top bowl is an open cone, a little wider at its
-// foot, with pale streaks running down it; the foam where it lands pulses; rings spread across the
-// pool from where the water lands and across the top bowl from its middle; drops splash up at the
-// foot. The model's own still sheet and foam are hidden and drawn here instead, in the prototype's
-// units (mFountain, waterFall and FALLS).
-
 const isStreak = (i: number) => (i * 37) % COLUMNS < 14;
 
-/** A point of the sheet t of the way down it (0 at the lip, 1 in the pool): its distance out and height */
 function fall(t: number): [number, number] {
   return [FALLS.r0 + (FALLS.r1 - FALLS.r0) * Math.sqrt(t), FALLS.z0 - DROP * t * t];
 }
 
-/**
- * The open cone of falling water, `out` further out than the sheet itself. Its paper runs round it
- * (u) and down it (v, 1 at the lip): by t for the colour bands, by length for the sliding streaks.
- */
 function cone(out: number, byLength: boolean): BufferGeometry {
   const ts = Array.from({ length: DOWN + 1 }, (_, j) => j / DOWN);
   const ring = ts.map(fall);
@@ -70,7 +58,6 @@ function cone(out: number, byLength: boolean): BufferGeometry {
   const uv: number[] = [];
   const index: number[] = [];
   for (let j = 0; j <= DOWN; j++) {
-    // the sheet's slope there: out and down as t grows
     const t = Math.max(ts[j], 1e-4);
     const dr = (FALLS.r1 - FALLS.r0) / (2 * Math.sqrt(t));
     const dz = -2 * DROP * t;
@@ -96,7 +83,6 @@ function cone(out: number, byLength: boolean): BufferGeometry {
   return geometry;
 }
 
-/** A flat ring from `inner` to `outer` at height z, its paper running round it (u) and across it (v) */
 function band(inner: number, outer: number, z: number, segments: number): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
@@ -115,7 +101,6 @@ function band(inner: number, outer: number, z: number, segments: number): Buffer
   return geometry;
 }
 
-/** Moves a flat ring's edges to `inner` and `outer`, keeping its pieces */
 function resize(geometry: BufferGeometry, inner: number, outer: number, z: number) {
   const position = geometry.getAttribute("position") as BufferAttribute;
   const segments = position.count / 2 - 1;
@@ -145,7 +130,6 @@ function texture(paper: HTMLCanvasElement): CanvasTexture {
   return map;
 }
 
-/** The sheet's colours: the bands down it and the paler streak columns, as the model has them */
 function sheetPaper(): CanvasTexture {
   const [paper, context] = canvas(COLUMNS * 8, BANDS.length * 16);
   if (context) {
@@ -159,7 +143,6 @@ function sheetPaper(): CanvasTexture {
   return texture(paper);
 }
 
-/** The white streaks, each dashed and set off a little from its neighbours; one round of dashes is the paper's height */
 function streakPaper(): CanvasTexture {
   const width = 2048;
   const height = 256;
@@ -169,7 +152,7 @@ function streakPaper(): CanvasTexture {
     const thick = Math.max(2, (STRAND.width / (2 * Math.PI * FALLS.r1)) * width);
     for (let i = 0; i < STRANDS; i++) {
       const x = ((i + 0.5 + 0.2 * Math.sin(i * 2.3)) / STRANDS) * width;
-      // the map sets each streak off by (i × 0.37) mod 0.9 of its 0.9 s
+
       let y = (((i * 0.37) % 0.9) / 0.9) * height;
       STRAND.dashes.forEach((length, k) => {
         const size = (length / DASH_ROUND) * height;
@@ -187,7 +170,6 @@ function streakPaper(): CanvasTexture {
   return map;
 }
 
-/** The foam ring's two whites, alternating round it */
 function foamPaper(): CanvasTexture {
   const [paper, context] = canvas(FOAM.pieces * 8, 4);
   if (context) {
@@ -203,10 +185,6 @@ const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 type Props = Pick<MotionProps, "speed" | "at"> & ThreeElements["group"];
 
-/**
- * The World Plaza fountain with its water falling, foaming and rippling, in the model's own units
- * (the same size and place as <Model src="/models/fountain.glb" />)
- */
 export function Fountain({ speed = 1, at, ...props }: Props) {
   const { model, part, toModel } = useParts("/models/fountain.glb");
   const light = useRoomLight();
@@ -266,7 +244,6 @@ export function Fountain({ speed = 1, at, ...props }: Props) {
     };
   }, [light]);
 
-  // two drops at the foot of every third streak, round the whole sheet
   const spots = useMemo(
     () =>
       Array.from({ length: STRANDS }, (_, i) => i)
@@ -284,7 +261,6 @@ export function Fountain({ speed = 1, at, ...props }: Props) {
   const ringLooks = useMemo(() => RIPPLES.map(() => water.ripple()), [water]);
 
   useEffect(() => {
-    // the model's own still water is drawn again here, moving
     for (const name of ["falls", "foam"]) {
       const own = part(name);
       if (own) own.visible = false;
@@ -311,7 +287,6 @@ export function Fountain({ speed = 1, at, ...props }: Props) {
   );
 
   useFrame(() => {
-    // `at` holds everything at that share of the pool rings' 2.6 s
     const time = at === undefined ? clock() : at * RIPPLES[0].time;
     const streaks = (streakSheet.current?.material as MeshBasicMaterial | undefined)?.map;
     if (streaks) streaks.offset.y = time / STRAND.slide;
@@ -352,7 +327,7 @@ export function Fountain({ speed = 1, at, ...props }: Props) {
   return (
     <group {...props}>
       <primitive object={model} />
-      {/* the moving water, in the prototype's units */}
+
       <group matrixAutoUpdate={false} matrix={toModel}>
         <mesh geometry={water.shapes.sheet} material={water.sheet} />
         <mesh ref={streakSheet} geometry={water.shapes.streaks} material={water.streaks} />

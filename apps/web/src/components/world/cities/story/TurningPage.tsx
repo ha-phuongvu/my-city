@@ -35,21 +35,11 @@ import {
   TURN,
 } from "../../constants/cities/story/TurningPage.constants";
 
-// A page turning over the open book, as on the prototype's map (its bookFlipFrame()). The page is
-// a grid of points, and each one turns round the spine from the right-hand page to the left-hand
-// one: slowly, then fast, then slowly. The top outer corner leads, and the points nearer the spine
-// and the foot of the page follow up to 30% of the turn later, so the page curls over the way it
-// does when you turn it by its corner. Each row is laid out from the spine one step at a time, each
-// step in the direction its own point has turned to, which is what bends the page. Its front carries
-// the right-hand page's printing and its back the left-hand page's, so it matches both where it lies.
-
-/** How far round the spine the point s out from it and z up the page has turned, t of the way through */
 function angle(s: number, z: number, t: number): number {
-  const lead = (s / PAGE.width) * (0.5 + (0.5 * z) / PAGE.height); // 1 at the top outer corner
+  const lead = (s / PAGE.width) * (0.5 + (0.5 * z) / PAGE.height);
   return PAGE.open + (Math.PI - 2 * PAGE.open) * ease((t - LAG * (1 - lead)) / (1 - LAG));
 }
 
-/** One side of the page: the paper with its printing */
 function printed(layers: PrintLayer[]): CanvasTexture {
   const width = PRINT_PIXELS;
   const height = Math.round((width * PAGE.height) / PAGE.width);
@@ -80,7 +70,6 @@ function printed(layers: PrintLayer[]): CanvasTexture {
   return texture;
 }
 
-/** The grid of the page: its points move every frame, the paper stays pinned to them */
 function sheet(): BufferGeometry {
   const geometry = new BufferGeometry();
   const count = (COLUMNS + 1) * (ROWS + 1);
@@ -101,7 +90,6 @@ function sheet(): BufferGeometry {
   return geometry;
 }
 
-/** Bends the page to how it lies t of the way through its turn */
 function bend(geometry: BufferGeometry, t: number) {
   const position = geometry.getAttribute("position") as BufferAttribute;
   const step = PAGE.width / COLUMNS;
@@ -125,11 +113,6 @@ function bend(geometry: BufferGeometry, t: number) {
   geometry.computeVertexNormals();
 }
 
-/**
- * The turning page, in book.glb's own frame: put it in the same group as the book model. Page after
- * page turns while `pointing`, and it shows only while it turns; at rest it would lie exactly on the
- * book's own pages.
- */
 export function TurningPage({ speed = 1, at, pointing }: MotionProps) {
   const page = useRef<Group>(null);
   const play = usePlayWhilePointed(TURN, { speed, pointing }, AGAIN);
@@ -144,7 +127,7 @@ export function TurningPage({ speed = 1, at, pointing }: MotionProps) {
         metalness: 0,
         envMap: light,
         envMapIntensity: 0.5,
-        // where the page still lies on the book's own pages, it is drawn over them
+
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -4,

@@ -24,13 +24,6 @@ import {
   RIGHT,
 } from "../constants/environment/AppleTrees.constants";
 
-// The apples hanging on the apple trees, which sway with their trees. Pointing at an apple tree
-// drops one of them, then another every 1.6 seconds while the pointer stays, as on the prototype's
-// map (dropApple): it falls, bounces once, rolls a little to one side, lies in the grass a while and
-// fades, and 2.5 seconds later grows back on the tree. The prototype moves it over its picture: a
-// unit across the picture is √(2/3) of a three.js unit along the screen's right, and a unit down it
-// is a unit of height.
-
 const SPOT = new Vector3();
 
 const easeIn = (t: number) => t * t;
@@ -40,19 +33,17 @@ type Hanging = {
   tree: number;
   rest: Vector3;
   radius: number;
-  /** when it was let go, and where it rolls (across the picture) and how high it bounces */
+
   dropped?: { at: number; roll: number; bounce: number };
 };
 
-/** How far an apple falls to lie in the grass */
 const fallOf = (apple: Hanging) => apple.rest.y - apple.radius * LYING;
 
-/** Where a dropped apple is `age` seconds after it let go: [across the picture, down, opacity, scale] */
 function dropAt(apple: Hanging, age: number): [number, number, number, number] {
   const { roll, bounce } = apple.dropped ?? { roll: 0, bounce: 0 };
   const fall = fallOf(apple);
   const k = age / DROP;
-  // falls, bounces up and down again, rolls on, lies, fades
+
   if (k < 0.22) return [0, fall * easeIn(k / 0.22), 1, 1];
   if (k < 0.29) {
     const f = easeOut((k - 0.22) / 0.07);
@@ -65,13 +56,12 @@ function dropAt(apple: Hanging, age: number): [number, number, number, number] {
   if (k < 0.46) return [roll * (0.8 + 0.2 * easeOut((k - 0.36) / 0.1)), fall, 1, 1];
   if (k < 0.84) return [roll, fall, 1, 1];
   if (k < 1) return [roll, fall, (1 - k) / 0.16, 1];
-  // gone, then growing back on the tree
+
   const grow = (age - DROP - GONE) / REGROW;
   if (grow < 0) return [0, 0, 0, 0.1];
   return grow < 1 ? [0, 0, easeOut(grow), 0.1 + 0.9 * easeOut(grow)] : [0, 0, 1, 1];
 }
 
-/** The apple trees' apples, dropping when a tree is pointed at */
 export function AppleTrees({
   trees,
   still = false,
@@ -84,7 +74,7 @@ export function AppleTrees({
   const dropping = useRef<{ tree: number; next: number } | null>(null);
   const now = useRef(0);
   const ball = useMemo(() => new SphereGeometry(1, 12, 8), []);
-  // the apples, each with its own look so it can fade on its own; shapes shared by colour
+
   const made = useMemo(() => {
     const shapes = new Map<string, BufferGeometry>();
     const list: { geometry: BufferGeometry; look: MeshBasicMaterial; apple: Hanging }[] = [];
@@ -109,12 +99,11 @@ export function AppleTrees({
   }, [made]);
   useEffect(() => () => ball.dispose(), [ball]);
 
-  /** Lets go of one of tree i's apples still hanging, chosen at random */
   const drop = (i: number) => {
     const left = apples.current.filter((a) => a.tree === i && !a.dropped);
     const apple = left[Math.floor(Math.random() * left.length)];
     if (!apple) return;
-    // its width on the picture sets how far it rolls and caps how high it bounces
+
     const width = (2 * apple.radius) / PICTURE;
     apple.dropped = {
       at: now.current,
@@ -137,7 +126,7 @@ export function AppleTrees({
       const t = trees[apple.tree];
       const age = apple.dropped ? now.current - apple.dropped.at : Infinity;
       if (age >= DROP + GONE + REGROW) apple.dropped = undefined;
-      // on the tree it sways with it; once let go it falls from where it hung
+
       const [across, down, opacity, scale] = apple.dropped ? dropAt(apple, age) : [0, 0, 1, 1];
       const lean = still ? 0 : leanAt(SWAY.apple, t.x, t.z, time);
       const hanging = !apple.dropped || age >= DROP;
@@ -151,7 +140,6 @@ export function AppleTrees({
   });
 
   const enter = (i: number) => (event: ThreeEvent<PointerEvent>) => {
-    // not while the map is being dragged, nor for anyone who has asked for less motion
     if (still || event.buttons || dropping.current?.tree === i) return;
     drop(i);
     dropping.current = { tree: i, next: now.current + DROP_EVERY };
@@ -162,7 +150,6 @@ export function AppleTrees({
 
   return (
     <group>
-      {/* where pointing starts it: a ball round each crown, as the prototype's ring round it */}
       {trees.map((t, i) => (
         <mesh
           key={i}

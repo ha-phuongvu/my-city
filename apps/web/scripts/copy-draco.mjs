@@ -1,5 +1,3 @@
-// Copies the Draco decoder from the three package into public/draco, so compressed GLB models
-// are decoded from our own site instead of a third-party CDN. Runs before `dev` and `build`.
 import { cp, mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";

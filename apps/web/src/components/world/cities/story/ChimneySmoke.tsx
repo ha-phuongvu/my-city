@@ -16,12 +16,6 @@ import {
   START,
 } from "../../constants/cities/story/ChimneySmoke.constants";
 
-// Chimney smoke, as on the prototype's Story City map (smokeHtml): soft white puffs leave the chimney
-// small and thin, rise, sway, billow wider and drift off downwind as they fade, one after another,
-// round and round. The 3D guide asks for it as a particle effect rather than a model, so each puff
-// is a sprite: a soft round blot with ragged, wispy edges, always facing the camera.
-
-/** A soft white blot, densest in the middle and wispy at its edge, as the map draws each puff */
 function blot(): CanvasTexture {
   const size = 128;
   const paper = document.createElement("canvas");
@@ -42,8 +36,7 @@ function blot(): CanvasTexture {
     gradient.addColorStop(1, "rgba(238, 237, 235, 0)");
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
-    // ragged edges: the map runs the puffs through a turbulence filter; here a few soft bites are
-    // taken out of the edge and a few soft lumps added
+
     context.globalCompositeOperation = "destination-out";
     for (let i = 0; i < 9; i++) {
       const a = i * 2.39996;
@@ -67,7 +60,6 @@ function blot(): CanvasTexture {
   return map;
 }
 
-/** Where along the map's keyframes a puff is, k of the way through its life (0 to 1) */
 function along<T extends { at: number }>(keys: T[], k: number): [T, T, number] {
   let i = 0;
   while (i < keys.length - 2 && k > keys[i + 1].at) i++;
@@ -77,22 +69,20 @@ function along<T extends { at: number }>(keys: T[], k: number): [T, T, number] {
 }
 
 type Props = MotionProps & {
-  /** where the smoke leaves the chimney, in the prototype's units (the building's steam() spot) */
   from: [number, number, number];
-  /** how big the plume is (steam()'s s) */
+
   size: number;
-  /** which of the building's chimneys this is (0, 1, …), so neighbouring plumes keep their own pace */
+
   chimney?: number;
 };
 
-/** The smoke rising from one chimney, in the prototype's units: put it in the building's prototype frame */
 export function ChimneySmoke({ from, size, chimney = 0, speed = 1, at }: Props) {
   const still = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
   const life = LIFE + LIFE_STEP * chimney;
   const clock = useCycle(life, { speed: still ? 0 : speed, at });
   const puffs = useRef<(Sprite | null)[]>([]);
   const width = ACROSS * size * PUFF;
-  // each puff's own sway, drift, last size and strength, from the map's formulas
+
   const own = useMemo(
     () =>
       Array.from({ length: PUFFS }, (_, i) => ({
@@ -126,7 +116,7 @@ export function ChimneySmoke({ from, size, chimney = 0, speed = 1, at }: Props) 
     own.forEach((puff, i) => {
       const sprite = puffs.current[i];
       if (!sprite) return;
-      // the puffs are spread evenly through one life, the first one furthest up
+
       const k = (time / life + i / PUFFS) % 1;
       const [a, b, f] = along(KEYS, k);
       const mix = (p: number, q: number) => p + (q - p) * f;

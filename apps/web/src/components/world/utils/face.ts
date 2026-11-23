@@ -12,14 +12,8 @@ import {
 import { TextAlign } from "../constants/face.constants";
 import { withRoomLight } from "./roomLight";
 
-// The words and pictures painted on a sign's board. The prototype lays them over its map as a page
-// element on the board's face (its face: the top left, top right and bottom left corners, and its
-// width and height, in map units); here they are drawn on a canvas and laid on that face as a thin
-// sheet just in front of the board, in the prototype's units.
-
 type Point = readonly [number, number, number];
 
-/** A sheet over a face: `at(s, t)` is its point s of the way across (left to right) and t down */
 export function faceSheet(
   at: (s: number, t: number) => Point,
   columns = 1,
@@ -45,7 +39,6 @@ export function faceSheet(
   return sheet;
 }
 
-/** A flat face from its top left, top right and bottom left corners, lifted `lift` toward the viewer along `out` */
 export function flatSheet(
   [tl, tr, bl]: readonly Point[],
   out: Point = [0, 0, 0],
@@ -58,7 +51,6 @@ export function flatSheet(
   ]);
 }
 
-/** A canvas for a face `width` × `height` map units, `k` pixels to the unit */
 export type Canvas = {
   context: CanvasRenderingContext2D;
   texture: CanvasTexture;
@@ -79,10 +71,6 @@ export function faceCanvas(width: number, height: number, k = 360): Canvas {
   return { context, texture, k, width, height };
 }
 
-/**
- * The face's look: lit like the models (the room light too) when given the light, or unlit, as a
- * screen glows. Drawn over the board where they touch.
- */
 export function faceMaterial(map: Texture, light?: Texture): Material {
   const options = {
     map,
@@ -97,7 +85,6 @@ export function faceMaterial(map: Texture, light?: Texture): Material {
   return withRoomLight(new MeshStandardMaterial({ ...options, roughness: 1, metalness: 0 }), light);
 }
 
-/** A line of words, sized in map units as the prototype's page sizes them */
 export type Words = {
   text: string;
   size: number;
@@ -105,10 +92,10 @@ export type Words = {
   weight?: number | string;
   style?: string;
   color: string;
-  /** letter spacing, in ems */
+
   spacing?: number;
   opacity?: number;
-  /** a soft glow round the letters (the page's text-shadow): its colour and spread in map units */
+
   glow?: { color: string; blur: number };
 };
 
@@ -118,13 +105,11 @@ function setFont(canvas: Canvas, words: Words) {
   context.letterSpacing = `${(words.spacing ?? 0) * words.size * k}px`;
 }
 
-/** How wide a line of words is, in map units */
 export function wordsWidth(canvas: Canvas, words: Words): number {
   setFont(canvas, words);
   return canvas.context.measureText(words.text).width / canvas.k;
 }
 
-/** Draws a line of words with the middle of its line at y, starting at x (or centred on it) */
 export function drawWords(
   canvas: Canvas,
   words: Words,

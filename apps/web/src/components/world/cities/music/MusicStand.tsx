@@ -42,19 +42,8 @@ import {
   WIDTH,
 } from "../../constants/cities/music/MusicStand.constants";
 
-// Music City's name sign: a wire music stand holding an open booklet of sheet music. On its pages,
-// as the prototype's page lays them, the city's name is the piece's title over a staff with a
-// treble clef and a little tune, with the status at the foot. Pointing at Music City (the stand is
-// part of it) plays the tune: the notes hop one after another (0.42 s each, 0.16 s apart) and the
-// music flies out of the page, a ribbon of staff lines sweeping up out of the sheet in a wave,
-// drawing itself out, notes popping onto it as it reaches them, then drifting up and fading (3 s).
-// It plays again and again for as long as the pointer stays in the city, and finishes the one it's
-// on when it leaves.
-
-/** How far the pages bow toward us X across from the spine */
 const bow = (X: number) => 0.1 * Math.sin((Math.PI * Math.abs(X)) / (PAGE.width * 1.1)) + 0.01;
 
-/** The point s across and t down the face, on the bowed pages */
 function onPage(s: number, t: number): [number, number, number] {
   const X = -W / 2 + PAD + s * WIDTH;
   const up = PAGE.height - 0.06 - t * HEIGHT;
@@ -68,7 +57,6 @@ function onPage(s: number, t: number): [number, number, number] {
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
-/** A CSS cubic-bezier() timing curve: how far along it is at share x of the time */
 function bezier(x1: number, y1: number, x2: number, y2: number): (x: number) => number {
   const along = (a: number, b: number, s: number) =>
     3 * a * s * (1 - s) ** 2 + 3 * b * s * s * (1 - s) + s ** 3;
@@ -92,7 +80,7 @@ const POP = bezier(0.3, 1.6, 0.6, 1);
 const xc = (t: number) => 8 + 206 * t;
 const yc = (t: number) => 104 - 80 * t + 13 * Math.sin(Math.PI * 2.4 * t);
 const spread = (t: number) => 1.5 + 1.7 * Math.sin(Math.PI * Math.min(1, t * 1.12));
-// each staff line: its points, and how far along it each one is
+
 const STAFF = [-2, -1, 0, 1, 2].map((j) => {
   const points = Array.from(
     { length: 49 },
@@ -108,7 +96,6 @@ const STAFF = [-2, -1, 0, 1, 2].map((j) => {
 const noteAt = ([t, step]: readonly [number, number, number?]) =>
   [xc(t), yc(t) - (step * spread(t)) / 2, step >= 2] as const;
 
-/** Over its 2.8 s the picture fades in, rises out of the sheet turning a little, and drifts up as it fades */
 function flowAt(t: number) {
   const k = Math.min(1, Math.max(0, t / 2.8));
   const between = (keys: number[][], at: number) => {
@@ -127,7 +114,7 @@ function flowAt(t: number) {
     ],
     k,
   );
-  // [when, across and down (shares of the picture), turn (degrees, clockwise), scale]
+
   const [x, y, turn, scale] = between(
     [
       [0, -0.03, 0.05, 5, 0.9],
@@ -139,7 +126,6 @@ function flowAt(t: number) {
   return { opacity, x: x * FLOW.width, y: -y * FLOW.height, turn: (-turn * Math.PI) / 180, scale };
 }
 
-/** The music flying out, t seconds into the tune: the staff drawing itself out and the notes popping on */
 function paintFlow(canvas: Canvas, t: number) {
   const { context, k } = canvas;
   const at = (x: number, y: number) =>
@@ -151,7 +137,7 @@ function paintFlow(canvas: Canvas, t: number) {
   context.lineCap = "round";
   context.lineWidth = 0.55 * k;
   context.globalAlpha = 0.8;
-  // the staff draws itself out over 1.25 s, from 0.1 s
+
   const drawn = EASE_OUT((t - 0.1) / 1.25);
   if (drawn > 0)
     for (const { points, along } of STAFF) {
@@ -174,8 +160,7 @@ function paintFlow(canvas: Canvas, t: number) {
       context.stroke();
     }
   context.lineCap = "butt";
-  // each note pops on as the staff reaches it (0.45 s, from 0.12 s + 1.1 s × how far along it is):
-  // from a fifth of its size, 3 down, overshooting a little, about the middle of its box
+
   const pop = (when: number, box: readonly number[], paint: () => void) => {
     const e = POP((t - (0.12 + when * 1.1)) / 0.45);
     if (e <= 0) return;
@@ -219,7 +204,7 @@ function paintFlow(canvas: Canvas, t: number) {
       }
     });
   });
-  // and the treble clef at its start
+
   const [clefX, clefY] = [xc(0.035) - 4, yc(0.035) + 6];
   context.font = `${18 * k}px ${FONTS.music}`;
   context.textBaseline = "alphabetic";
@@ -235,14 +220,12 @@ function paintFlow(canvas: Canvas, t: number) {
   canvas.texture.needsUpdate = true;
 }
 
-/** How far note i has hopped up (0 to 1) t seconds into the tune: up quickly, then back down */
 function hop(i: number, t: number): number {
   const k = (t - i * HOP.gap) / HOP.time;
   if (k <= 0 || k >= 1) return 0;
   return k < 0.4 ? easeOut(k / 0.4) : 1 - easeOut((k - 0.4) / 0.6);
 }
 
-/** The pages' words and music, the notes hopped up as far as they are t seconds into the tune */
 function paintPages(face: Canvas, name: string, sub: string, t: number | undefined) {
   const { context, k } = face;
   context.clearRect(0, 0, WIDTH * k, HEIGHT * k);
@@ -266,7 +249,7 @@ function paintPages(face: Canvas, name: string, sub: string, t: number | undefin
   let y = 0.04 * U;
   drawWords(face, title, WIDTH / 2, y + title.size / 2);
   y += title.size + gap;
-  // the staff: 94% of the page's width, 100 × 30 of its own units
+
   const width = 0.94 * WIDTH;
   const unit = width / 100;
   const left = (WIDTH - width) / 2;
@@ -288,7 +271,6 @@ function paintPages(face: Canvas, name: string, sub: string, t: number | undefin
   context.fillText("\u{1D11E}", ...at(3, 23));
   context.lineWidth = 0.55 * unit * k;
   TUNE.forEach(([nx, ny], i) => {
-    // a hopping note rises 3.5 and grows a little, from its foot
     const h = t === undefined ? 0 : hop(i, t);
     const up = ny > 15;
     const foot = up ? ny + 1.9 : ny + 11;
@@ -322,13 +304,11 @@ function paintPages(face: Canvas, name: string, sub: string, t: number | undefin
 }
 
 type Props = MotionProps & {
-  /** where it stands: the prototype's units on its card → the map */
   place: Matrix4;
   name: string;
   sub: string;
 };
 
-/** Music City's music stand, playing its little tune while the city is pointed at */
 export function MusicStand({ place, name, sub, ...motion }: Props) {
   const { model, toModel } = useParts("/models/music-stand.glb");
   const light = useRoomLight();
@@ -360,7 +340,7 @@ export function MusicStand({ place, name, sub, ...motion }: Props) {
   const flow = useRef<Group>(null);
   const flowMesh = useRef<Mesh>(null);
   const drawn = useRef<number | undefined | null>(null);
-  // drawn again at rest whenever the words change
+
   useEffect(() => {
     drawn.current = null;
   }, [face, name, sub]);
@@ -378,12 +358,12 @@ export function MusicStand({ place, name, sub, ...motion }: Props) {
 
   useFrame(() => {
     const t = still ? undefined : play();
-    // the pages are drawn again only while the notes are hopping
+
     if (t !== undefined || drawn.current !== undefined) {
       paintPages(face, name, sub, t);
       drawn.current = t;
     }
-    // the music flying out of the page, while it plays
+
     const shown = t !== undefined && t < 2.8;
     if (flowMesh.current) flowMesh.current.visible = shown;
     if (!shown || !flow.current) return;

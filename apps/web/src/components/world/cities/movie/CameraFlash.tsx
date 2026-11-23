@@ -35,15 +35,8 @@ import {
   STAR_KEYS,
 } from "../../constants/cities/movie/CameraFlash.constants";
 
-// Movie City's film camera fires its flash while the city is pointed at, as on the prototype's map
-// (its .fx-flash): two quick flashes from the lens, a white burst and a four-point glint, then a beam
-// of warm light shines out of it across the front of the lawn, flickering like a projector's for as
-// long as the pointer stays. When it leaves, the light fades away. The beam is a flat fan of light
-// that turns about its own line to face the viewer, so it looks the same from every side.
-
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
-/** The value `index` of a list of keyframes at share k of the way through, eased from each to the next if `eased` */
 function keyed(
   keys: readonly (readonly number[])[],
   k: number,
@@ -70,7 +63,6 @@ function painted(
   return texture;
 }
 
-/** The beam, lying along its picture from the lens (left) to its far end (right), narrow at the lens and widening out */
 const beamPicture = () =>
   painted([256, 128], (context, w, h) => {
     const fill = context.createLinearGradient(0, 0, w, 0);
@@ -88,7 +80,6 @@ const beamPicture = () =>
     context.fill();
   });
 
-/** The burst: white in the middle, warm gold round it, fading out */
 const glowPicture = () =>
   painted([128, 128], (context, w) => {
     const fill = context.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w * Math.SQRT1_2);
@@ -97,7 +88,6 @@ const glowPicture = () =>
     context.fillRect(0, 0, w, w);
   });
 
-/** The glint: two thin rays crossing, brightest where they cross */
 const starPicture = () =>
   painted([128, 128], (context, w) => {
     const ray = RAY * w;
@@ -114,7 +104,6 @@ const starPicture = () =>
     }
   });
 
-/** Movie City's camera flash and its flickering beam, while the city is pointed at */
 export function CameraFlash() {
   const still = useStill();
   const pointing = useInCity(CityId.Movie);
@@ -122,12 +111,12 @@ export function CameraFlash() {
   const beam = useRef<Mesh>(null);
   const glow = useRef<Sprite>(null);
   const star = useRef<Sprite>(null);
-  // how far into the flash it is (undefined while there's none), and how long since the pointer left
+
   const time = useRef<number | undefined>(undefined);
   const gone = useRef<number | undefined>(undefined);
   const lens = useMemo(() => new Vector3(...LENS), []);
   const reach = useMemo(() => new Vector3(...AIM).sub(lens), [lens]);
-  // the beam's picture lies along x from 0 to 1, y from -1/2 to 1/2
+
   const sheet = useMemo(() => new PlaneGeometry(1, 1).translate(0.5, 0, 0), []);
   const [beamLook, glowLook, starLook] = useMemo(() => {
     const shared = { transparent: true, depthWrite: false, toneMapped: false, opacity: 0 };
@@ -158,7 +147,6 @@ export function CameraFlash() {
   );
 
   useFrame(({ camera }, delta) => {
-    // it starts afresh each time the pointer comes into the city (and with less motion it never does)
     if (pointing && !still && (time.current === undefined || gone.current !== undefined)) {
       time.current = 0;
       gone.current = undefined;
@@ -177,7 +165,6 @@ export function CameraFlash() {
     const k = time.current / FLASH;
     const dim = gone.current === undefined ? 1 : 1 - gone.current / FADE;
 
-    // the burst and the glint, just out of the lens toward the viewer
     const { side, facing, toViewer, place } = work;
     toViewer.copy(camera.position).sub(lens).normalize();
     for (const [sprite, keys, sizeAt] of [
@@ -192,7 +179,6 @@ export function CameraFlash() {
     if (star.current)
       star.current.material.rotation = (-keyed(STAR_KEYS, k, 2, true) * Math.PI) / 180;
 
-    // the beam, along its line from the lens and turned about it to face the viewer
     if (beam.current) {
       side
         .copy(reach)

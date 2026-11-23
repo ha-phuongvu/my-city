@@ -26,22 +26,7 @@ import { WIND_GUST_GLSL, windNoise } from "../utils/wind";
 import { outskirtsGrass } from "../utils/outskirts";
 import { ownWave, WAVE_GLSL, WAVE_UNIFORMS } from "../utils/wave";
 
-// The meadow's long soft grass and the wild flowers standing in it, as on the prototype's world map
-// (its startGrass): about 40,000 blades and 741 flowers on thin stems, all bending in the wind. Gusts
-// roll across the meadow from the left of the screen to the right (utils/wind.ts): where one passes
-// the blades lean over together and catch the light, turning a paler green, so patches of light
-// grass sweep over it; each blade also has its own lean and shakes a little while the gust is strong.
-//
-// Where they grow comes from the prototype's buildWorld (scratchpad anim-world/grass.js →
-// world-grass.bin); how they bend is the page's own drawing, worked out on the graphics card. Each
-// blade is the page's curve, from the root up to its tip, a pixel or so wide on screen however near
-// or far it is (and never thinner than the page's 0.06 when seen from far off). They fade into the
-// haze with distance like everything else. Past the prototype's meadow the grass and flowers run on
-// over the outskirts (outskirts.ts), thinning out into the haze.
-
-// The wind and the bend, as the page works them out for a blade or a stem whose root is at (x, z):
-// the spot on the prototype's picture, then the gust passing over it (about -1 to 1)
-const WIND = /* glsl */ `
+const WIND = `
   uniform float uTime;
   uniform vec2 uScreen;
   uniform float uPixels;
@@ -50,30 +35,21 @@ const WIND = /* glsl */ `
   ${WIND_GUST_GLSL}
   ${WAVE_GLSL}
   #include <fog_pars_vertex>
-  // the page's still meadow: every blade a little over, nothing moving
   float gustAt(vec2 root) {
     return uStill > 0.5 ? 0.15 : windGust(root, uTime);
   }
   float timeNow() {
     return uStill > 0.5 ? 0.0 : uTime;
   }
-  // a spot on the picture (across, down) from the root, back on the map: across the picture runs
-  // along the ground toward the opening view's right, cos 30° × √2 picture units to a map unit; up it is up
   vec3 onMap(vec2 root, vec2 q) {
     return vec3(root.x, 0.0, root.y) + vec3(0.70710678, 0.0, -0.70710678) * (q.x / 1.2247449) + vec3(0.0, -q.y, 0.0);
   }
-  // the point of a curve from the root (q on the picture, running on along dq), moved to one side of
-  // it on screen (side -1 or 1) by half its width: uPixels wide, or uLeast on the map where that's
-  // wider, however far off it is
   vec4 widened(vec2 root, vec2 q, vec2 dq, float side) {
     vec4 view = modelViewMatrix * vec4(onMap(root, q), 1.0);
     vec4 clip = projectionMatrix * view;
     vec4 along = projectionMatrix * modelViewMatrix * vec4(onMap(vec2(0.0), dq), 0.0);
-    // which way the curve runs on screen, in pixels, and square to it on its right, so the strip
-    // always faces the camera, whichever way the blade points on screen
     vec2 run = (along.xy * clip.w - clip.xy * along.w) * uScreen;
     vec2 across = dot(run, run) > 1e-12 ? normalize(vec2(run.y, -run.x)) : vec2(1.0, 0.0);
-    // how many pixels a map unit is, this far off
     float perUnit = projectionMatrix[0][0] * uScreen.x * 0.5 / clip.w;
     float width = max(uPixels, uLeast * perUnit);
     clip.xy += side * across * width / uScreen * clip.w;
@@ -84,11 +60,11 @@ const WIND = /* glsl */ `
   }
 `;
 
-const BLADE_VERTEX = /* glsl */ `
+const BLADE_VERTEX = `
   attribute float along;
   attribute float side;
   attribute vec2 root;
-  attribute vec4 shape; // height, lean, phase, tone
+  attribute vec4 shape;
   uniform vec3 uTones[12];
   uniform vec3 uRoot;
   varying vec3 vColor;
@@ -96,7 +72,6 @@ const BLADE_VERTEX = /* glsl */ `
   void main() {
     float g = gustAt(root), time = timeNow();
     float own = 0.5 + 0.5 * sin(shape.z * 3.7);
-    // the further over it leans, the more light it catches
     float w = 0.25 + 0.5 * (0.45 * own + 0.55 * min(1.0, abs(g) * 1.6));
     float ww = g * g, h = shape.x, lean = shape.y;
     float bend = h * (0.1 + 0.85 * g) + h * (0.02 + 0.06 * abs(g)) * sin(time * 2.4 + shape.z);
@@ -105,22 +80,20 @@ const BLADE_VERTEX = /* glsl */ `
     float t = along;
     vec2 q = 2.0 * (1.0 - t) * t * control + t * t * tip;
     vec2 dq = 2.0 * (1.0 - 2.0 * t) * control + 2.0 * t * tip;
-    // (lying flat on the paper until the opening's wave comes)
     gl_Position = widened(root, q * waveRise(root), dq, side);
     vWaveGround = root;
     vColor = uTones[int(shape.w) * 4 + int(min(3.0, floor(w * 4.0)))];
     #ifdef SNOW
-      // (under snow, greyer toward the root)
       vColor = mix(uRoot, vColor, smoothstep(0.0, 0.75, t));
     #endif
   }
 `;
 
-const STEM_VERTEX = /* glsl */ `
+const STEM_VERTEX = `
   attribute float along;
   attribute float side;
   attribute vec2 root;
-  attribute vec4 shape; // height, lean, (unused), (unused)
+  attribute vec4 shape;
   uniform vec3 uColor;
   varying vec3 vColor;
   ${WIND}
@@ -133,18 +106,16 @@ const STEM_VERTEX = /* glsl */ `
     float t = along;
     vec2 q = 2.0 * (1.0 - t) * t * control + t * t * tip;
     vec2 dq = 2.0 * (1.0 - 2.0 * t) * control + 2.0 * t * tip;
-    // (lying flat on the paper until the opening's wave comes)
     gl_Position = widened(root, q * waveRise(root), dq, side);
     vWaveGround = root;
     vColor = uColor;
   }
 `;
 
-// a flower's four blooms: up the top of its stem (a spike) or bunched at its head (a cluster)
-const BLOOM_VERTEX = /* glsl */ `
+const BLOOM_VERTEX = `
   attribute vec2 corner;
   attribute vec2 root;
-  attribute vec4 shape; // height, lean, kind, which bloom (0-3)
+  attribute vec4 shape;
   attribute vec3 color;
   varying vec3 vColor;
   varying vec2 vCorner;
@@ -166,7 +137,6 @@ const BLOOM_VERTEX = /* glsl */ `
       at = tip + offsets[j];
       r = 0.042;
     }
-    // a little disc facing the camera, r on the picture (√(2/3) of a map unit each)
     vec4 middle = modelViewMatrix * vec4(onMap(root, at * waveRise(root)), 1.0);
     vWaveGround = root;
     middle.xy += corner * r * 0.81649658;
@@ -179,7 +149,7 @@ const BLOOM_VERTEX = /* glsl */ `
   }
 `;
 
-const FLAT_FRAGMENT = /* glsl */ `
+const FLAT_FRAGMENT = `
   varying vec3 vColor;
   ${WAVE_GLSL}
   #include <fog_pars_fragment>
@@ -191,7 +161,7 @@ const FLAT_FRAGMENT = /* glsl */ `
   }
 `;
 
-const DISC_FRAGMENT = /* glsl */ `
+const DISC_FRAGMENT = `
   varying vec3 vColor;
   ${WAVE_GLSL}
   varying vec2 vCorner;
@@ -205,7 +175,6 @@ const DISC_FRAGMENT = /* glsl */ `
   }
 `;
 
-/** A strip from root to tip, SEGMENTS long and two points across, to bend in the shader */
 function strip(): InstancedBufferGeometry {
   const geometry = new InstancedBufferGeometry();
   const along: number[] = [];
@@ -218,7 +187,7 @@ function strip(): InstancedBufferGeometry {
   }
   geometry.setAttribute("along", new Float32BufferAttribute(along, 1));
   geometry.setAttribute("side", new Float32BufferAttribute(side, 1));
-  // three.js wants a position to count the points by; the shader works out where they go
+
   geometry.setAttribute(
     "position",
     new Float32BufferAttribute(new Array(along.length * 3).fill(0), 3),
@@ -245,7 +214,6 @@ function wind(width: { pixels: number; least: number }, extra: Uniforms = {}): U
   };
 }
 
-/** The grass and flowers from world-grass.bin (see grass.js for its layout), and the outskirts' after them */
 function parse(data: ArrayBuffer) {
   const head = new DataView(data);
   const blades = head.getUint32(0, true);
@@ -281,10 +249,10 @@ export function Grass() {
 
   const parts = useMemo(() => {
     const { blades, palette, B, F: all } = parse(data);
-    // (in winter only one flower in SNOW.every shows, as a sprig of berries)
+
     const F = SNOW.every > 1 ? all.filter((_, k) => Math.floor(k / 9) % SNOW.every === 0) : all;
     const flowers = F.length / 9;
-    // the blades
+
     const grass = strip();
     const root = new Float32Array(blades * 2);
     const shape = new Float32Array(blades * 4);
@@ -315,7 +283,7 @@ export function Grass() {
         }),
       }),
     );
-    // the flowers' stems
+
     const stems = strip();
     const stemRoot = new Float32Array(flowers * 2);
     const stemShape = new Float32Array(flowers * 4);
@@ -334,7 +302,7 @@ export function Grass() {
         uniforms: wind(STALK, { uColor: { value: linear(STEM) } }),
       }),
     );
-    // and their blooms, four each
+
     const blooms = new InstancedBufferGeometry();
     blooms.setAttribute("corner", new Float32BufferAttribute([-1, -1, 1, -1, 1, 1, -1, 1], 2));
     blooms.setAttribute("position", new Float32BufferAttribute(new Array(12).fill(0), 3));
@@ -390,7 +358,7 @@ export function Grass() {
       const u = (mesh.material as ShaderMaterial).uniforms;
       const pixels = parts[i].pixels;
       u.uTime.value = clock.elapsedTime;
-      // the page's still meadow: every blade a little over, nothing moving
+
       u.uStill.value = still ? 1 : 0;
       u.uScreen.value = [size.width * dpr, size.height * dpr];
       u.uPixels.value = pixels * dpr;

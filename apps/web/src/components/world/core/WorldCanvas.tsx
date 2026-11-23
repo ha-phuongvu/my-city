@@ -59,26 +59,21 @@ import { isWinter } from "../utils/season";
 import { Winter } from "../seasons/Winter";
 import { Calendar, type CalendarWords } from "../ui/Calendar";
 import { type PlayerWords, RecordPlayer } from "../ui/RecordPlayer";
+import { useUiSize } from "../utils/uiSize";
 
-/** The words of what's on the frame over the world (the calendar and the record player), and the page's language */
 export type FrameWords = { language: Language; calendar: CalendarWords; player: PlayerWords };
 
 type Props = { label: string; opening: OpeningWords; frame: FrameWords };
 
 const clamp = (value: number, [low, high]: readonly [number, number]) =>
   Math.max(low, Math.min(high, value));
-// how far back the camera stands to show a frame of ground across and down a screen of this shape,
-// with room for the nearest ground
+
 const fitting = (frame: { width: number; height: number }, aspect: number) =>
   FIT_ROOM * Math.max(frame.height / 2 / HALF_FOV, frame.width / 2 / (HALF_FOV * aspect));
-// a colour's red, green and blue on the page (0 to 1), to mix two of them as the prototype does
+
 const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
 const mix = (a: number[], b: number[], k: number) => a.map((v, i) => v + (b[i] - v) * k);
 
-/**
- * The sky: a dome from the haze along the horizon up to deep blue overhead. It goes wherever the
- * camera goes, so it's always the same far away.
- */
 function Sky() {
   const dome = useRef<Mesh>(null);
   const geometry = useMemo(() => {
@@ -122,7 +117,6 @@ function Sky() {
   );
 }
 
-/** Where the camera is: the spot on the ground it looks at (tx, tz), turned th round it, tilted ph down from overhead, r away */
 type Orbit = { tx: number; tz: number; th: number; ph: number; r: number };
 type Drag = {
   pan: boolean;
@@ -133,15 +127,6 @@ type Drag = {
   t: number;
 };
 
-/**
- * Walking round the world, as the prototype's "Walk around in 3D" view. Dragging turns the view
- * round the spot it looks at and tilts it, and it turns on a little after letting go; the right
- * button, shift or two fingers move over the land; the wheel or a pinch zooms in on the spot under
- * the pointer; a double-click glides there; the arrow keys turn and tilt, + and - zoom. Moving over
- * the land is free, out into the outskirts' meadows and woods (outskirts.ts), as far as ROAM from the
- * fountain. It opens close in on the World Plaza and Story City (OPENING), and zooms out as far as
- * the prototype's map shows. It stays still while the opening plays.
- */
 function WalkControls({ intro }: { intro: RefObject<Intro> }) {
   const get = useThree((state) => state.get);
   const tick = useRef<(ms: number) => void>(() => {});
@@ -163,8 +148,6 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
     let drag: Drag | null = null;
     let pointers: Record<number, [number, number]> = {};
 
-    // how near and far it may stand: zoomed out, as far as the prototype's "Zoomed out" view on a
-    // screen of this shape (never nearer than the opening view)
     function reach(): [number, number] {
       const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
       const opening = fitting(FRAME, aspect);
@@ -175,7 +158,6 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
     }
 
     function place() {
-      // (tilted right down it stays at least treetop height above the ground)
       o.r = clamp(o.r, reach());
       o.ph = Math.min(TILT[1], Math.acos(Math.min(1, CAM_Y / o.r)), Math.max(TILT[0], o.ph));
       const far = Math.hypot(o.tx, o.tz);
@@ -192,7 +174,6 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       camera.lookAt(o.tx, 0, o.tz);
     }
 
-    // the spot on the ground under the pointer, if it's pointing at the ground
     const ray = new Raycaster();
     const at = new Vector2();
     function groundAt(x: number, y: number): Vector3 | null {
@@ -204,7 +185,7 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       if (direction.y > -1e-4) return null;
       return origin.clone().addScaledVector(direction, -origin.y / direction.y);
     }
-    // zoom by f (under 1 comes closer) on the spot under the pointer, which stays under it
+
     function zoomBy(f: number, x?: number, y?: number) {
       const r = clamp(o.r * f, reach());
       const g = x === undefined || y === undefined ? null : groundAt(x, y);
@@ -215,7 +196,7 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       o.r = r;
       place();
     }
-    // move over the land with the pointer (a pixel is this much ground where the camera looks)
+
     function pan(dx: number, dy: number) {
       const k = (2 * o.r * HALF_FOV) / Math.max(1, canvas.clientHeight);
       const kz = k / Math.max(0.35, Math.cos(o.ph));
@@ -226,7 +207,6 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       place();
     }
 
-    // one finger or the left button turns and tilts; the right button, shift or two fingers move and pinch
     const mid = (): [number, number, number] => {
       const all = Object.values(pointers);
       const n = Math.max(1, all.length);
@@ -256,9 +236,7 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       };
       try {
         canvas.setPointerCapture(event.pointerId);
-      } catch {
-        // (a pointer that has already gone can't be held; the drag just ends with it)
-      }
+      } catch {}
     };
     const onPointerMove = (event: PointerEvent) => {
       if (!drag || !pointers[event.pointerId]) return;
@@ -283,7 +261,6 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
         pan(dx, dy);
       } else if (drag.pan) pan(dx, dy);
       else {
-        // a drag the height of the screen turns it all the way round
         const H = Math.max(1, canvas.clientHeight);
         const dth = (-2 * Math.PI * dx) / H;
         const dph = (-2 * Math.PI * dy) / H;
@@ -307,7 +284,7 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
         return;
       }
       canvas.style.cursor = "grab";
-      // after letting go it turns on a little and slows down
+
       if (!drag.moved || drag.pan || still || performance.now() - drag.t > 80) vel.th = vel.ph = 0;
       drag = null;
     };
@@ -323,7 +300,7 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       glide = null;
       zoomBy(d < 0 ? f : 1 / f, event.clientX, event.clientY);
     };
-    // a double-click glides the camera to the spot on the ground
+
     const onDoubleClick = (event: MouseEvent) => {
       if (intro.current.on) return;
       const g = groundAt(event.clientX, event.clientY);
@@ -368,7 +345,7 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
     canvas.style.cursor = "grab";
     canvas.style.touchAction = "none";
     canvas.style.outline = "none";
-    // the arrow keys work straight away
+
     canvas.tabIndex = 0;
     canvas.focus({ preventScroll: true });
     canvas.addEventListener("contextmenu", onContextMenu);
@@ -398,8 +375,6 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
 }
 
 function Landmarks() {
-  // The fountain, in map units, with its water falling: the prototype's ground is 0.15 up, so it sits
-  // that far down. The stone bridge and the other models that stand still are Scenery's.
   return (
     <>
       <Fountain position={[0, -0.15, 0]} />
@@ -408,12 +383,10 @@ function Landmarks() {
   );
 }
 
-// The 3D world, to walk round: the camera opens looking down the same diagonal as the reference
-// pictures, so the GLB models line up with how they were drawn, and then turns all the way round them.
-// It opens on the paper with the welcome (Opening), and the world grows up out of it.
 export default function WorldCanvas({ label, opening, frame }: Props) {
   const intro = useRef<Intro>({ on: true, arrived: false });
   const [welcome, setWelcome] = useState(true);
+  useUiSize();
   return (
     <>
       <Canvas
@@ -432,7 +405,7 @@ export default function WorldCanvas({ label, opening, frame }: Props) {
         <Sky />
         <WorldLights />
         <Fields />
-        {/* (in winter snow lies on what stands, but not on these: the plants carry their own) */}
+
         <group userData={{ noSnow: true }}>
           <Foliage />
           <WindLines />
@@ -441,7 +414,7 @@ export default function WorldCanvas({ label, opening, frame }: Props) {
           <group userData={{ noSnow: true }}>
             <Ground />
             <Grass />
-            {/* (frozen over in winter, they don't flow) */}
+
             {!isWinter() && <Pond />}
             {!isWinter() && <River />}
             <Symbols />
@@ -466,7 +439,7 @@ export default function WorldCanvas({ label, opening, frame }: Props) {
           />
         )}
       </Canvas>
-      {/* (on the frame over the world, once the opening is over; the music starts by itself then) */}
+
       {!welcome && <Calendar words={frame.calendar} language={frame.language} />}
       {!welcome && <RecordPlayer words={frame.player} start />}
     </>

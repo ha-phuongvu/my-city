@@ -13,14 +13,9 @@ import {
   SCALE,
 } from "../../constants/cities/future/SurveyFlags.constants";
 
-// The survey flags round the future-city plot, flying, as on the prototype's map: two red and
-// white and one blue and white, each half as big again as on its card. Each flag's wave takes a
-// little longer than the one before and starts a little later, so they don't flap together.
-
-/** The survey flags at three corners of the future-city plot */
 export function SurveyFlags() {
   const still = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
-  // each flag stands on its pole's foot (x = y = 0 on the ground at z 0.15 in the prototype's units)
+
   const { scene } = useGLTF("/models/survey-flag.glb", "/draco/");
   const foot = useMemo(() => {
     const frame = frameOf(scene);

@@ -1,10 +1,6 @@
 import type { WebGLProgramParametersWithUniforms } from "three";
 
-// A soft, painted mottling and a pale paper wash for the flat ground, like the prototype's map. It is worked
-// out in the shader from each point's place in the world, so it needs no texture or UVs and runs
-// on seamlessly across meadow, roads, lawns and fields.
-
-const VERTEX = /* glsl */ `
+const VERTEX = `
   vec4 grainPosition = vec4(transformed, 1.0);
   #ifdef USE_INSTANCING
     grainPosition = instanceMatrix * grainPosition;
@@ -12,8 +8,7 @@ const VERTEX = /* glsl */ `
   vGrainPosition = (modelMatrix * grainPosition).xz;
 `;
 
-const FRAGMENT = /* glsl */ `
-  // the pale paper the prototype's map seems painted on, which softens every ground colour a little
+const FRAGMENT = `
   const vec3 PAPER = vec3(0.93, 0.92, 0.88);
   float grainHash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -33,10 +28,6 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
-/**
- * Material props that add the grain, washed `wash` of the way toward the paper, e.g.
- * <meshStandardMaterial {...grain(0.2)} color="#a2c070" />
- */
 export const grain = (wash: number) => ({
   customProgramCacheKey: () => `my-city-grain-${wash}`,
   onBeforeCompile(shader: WebGLProgramParametersWithUniforms) {

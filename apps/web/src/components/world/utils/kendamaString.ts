@@ -9,15 +9,6 @@ import {
   WOOD,
 } from "../constants/kendamaString.constants";
 
-// The kendama's string, worked out as the prototype's mKendama does, in the toy's own frame (x across,
-// y forward, so behind the toy's plane is -y, z up). It is tied on the cross-piece, 0.19 out from its
-// middle: on the front just under the spike, or on the back facing the ball while the ball is behind.
-// At rest on the spike it's slack and bows out in front. Swinging, it trails behind the ball in a curve
-// and sags a little, bending in front of the toy, or behind it with the ball; the curve takes up just
-// the string that isn't pulled straight, so the string keeps its length. Either way it keeps clear of the
-// wood all along, leaving it at a good slant.
-
-/** How far a point is from the wood (less than 0 inside it) */
 function gap(p: Vector3): number {
   let best = Infinity;
   for (const [axis, a0, r0, a1, r1] of WOOD) {
@@ -30,17 +21,11 @@ function gap(p: Vector3): number {
   return best;
 }
 
-/** How far round to the back the string has gone: 0 with the ball in front, 1 once it's 0.25 behind */
 function behind(ball: Vector3): number {
   const k = Math.min(1, Math.max(0, -ball.y / 0.25));
   return k * k * (3 - 2 * k);
 }
 
-/**
- * Where the string is tied for a ball at `ball`. It moves round to the back smoothly, never jumps,
- * and never lower on the back than a little under the middle, and over the top of the cross-piece it slides along it toward the ball's side, so it goes round the
- * spike rather than through it.
- */
 function knot(ball: Vector3): Vector3 {
   let d: [number, number] = [0.79, 0.62];
   if (ball.y < 0) {
@@ -65,7 +50,6 @@ function knot(ball: Vector3): Vector3 {
 const length = (pts: Vector3[]) =>
   pts.reduce((s, p, k) => (k ? s + p.distanceTo(pts[k - 1]) : 0), 0);
 
-/** At rest: a gentle bow out in front, by however much string is slack while the ball sits on the spike */
 function slack(a: Vector3, ball: Vector3): Vector3[] {
   const near = Math.abs(ball.x) < 0.2 && ball.z > 2.8;
   const s = near ? Math.max(0, LENGTH - a.distanceTo(ball)) : 0;
@@ -85,7 +69,6 @@ function slack(a: Vector3, ball: Vector3): Vector3[] {
   });
 }
 
-/** A smooth bend toward `dir`, h deep, a little deeper toward the ball */
 function bend(a: Vector3, ball: Vector3, dir: Vector3, h: number): Vector3[] {
   const c = ball.clone().sub(a);
   const q1 = a
@@ -108,7 +91,6 @@ function bend(a: Vector3, ball: Vector3, dir: Vector3, h: number): Vector3[] {
   });
 }
 
-/** The bend toward `dir` as deep as the string's length allows */
 function fit(a: Vector3, ball: Vector3, dir: Vector3): Vector3[] {
   let lo = 0,
     hi = 0.9;
@@ -122,10 +104,6 @@ function fit(a: Vector3, ball: Vector3, dir: Vector3): Vector3[] {
   return bend(a, ball, dir, lo);
 }
 
-/**
- * How clear of the wood the string is: the least, over each point along it and each halfway between,
- * of how much further from the wood it is than it has to be there (CLEAR); under 0 if it's too near
- */
 function clearance(pts: Vector3[]): number {
   let along = 0;
   let least = Infinity;
@@ -150,11 +128,9 @@ function clearance(pts: Vector3[]): number {
   return least;
 }
 
-/** Swinging: trailing behind the ball (`heading` is which way it's going) and turned off the wood */
 function swinging(a: Vector3, ball: Vector3, heading: Vector3): Vector3[] {
   const cu = ball.clone().sub(a).normalize();
-  // which way it bends: back from where the ball is going, down a little, and away from the wood,
-  // square to the line from knot to ball
+
   const w = heading
     .clone()
     .normalize()
@@ -163,8 +139,7 @@ function swinging(a: Vector3, ball: Vector3, heading: Vector3): Vector3[] {
   w.addScaledVector(cu, -w.dot(cu));
   if (w.lengthSq() > 1e-12) w.normalize();
   else w.set(0, ball.y < 0 ? -1 : 1, 0);
-  // if that bend would come too near the wood, it turns round the line from knot to ball, a little at a
-  // time either way, until the string is clear of it all along; if no way round is, the one that comes nearest
+
   const side = new Vector3().crossVectors(cu, w);
   let best: Vector3[] = [];
   let bestClear = -Infinity;
@@ -186,12 +161,6 @@ function swinging(a: Vector3, ball: Vector3, heading: Vector3): Vector3[] {
   return best;
 }
 
-/**
- * Points along the string from its knot to the ball at `ball`, in the toy's own frame. `heading` is
- * which way the ball is going and `swing` how far into the swing it is (0 at rest, 1 swinging), so
- * the string eases from its resting bow into the trailing curve as the ball leaves the spike and back
- * as it lands.
- */
 export function kendamaString(ball: Vector3, heading: Vector3, swing: number): Vector3[] {
   const a = knot(ball);
   const rest = slack(a, ball);

@@ -29,30 +29,19 @@ import {
   VIEW,
 } from "../constants/environment/FallingLeaves.constants";
 
-// Pointing at a round tree shakes its leaves loose, as on the prototype's map (shedLeaves): three at
-// first, then one or two every half second for as long as the pointer stays. Each leaf comes loose
-// from a spot on the side of the crown we see, flutters down to the grass swinging from side to side
-// and spinning as it goes, lands and fades. The prototype moves its leaves over its picture: a unit
-// across the picture is √(2/3) of a three.js unit along the screen's right, and a unit down it is a
-// unit of height.
-
-/** A round tree's crown, in three.js units */
 export type Crown = {
-  /** the middle of the crown */
   center: [number, number, number];
-  /** its half size across and its half height */
+
   across: number;
   up: number;
-  /** the tree's size (the prototype's s), which sets how long its leaves are */
+
   size: number;
-  /** the colours its leaves come down in */
+
   tones: string[];
 };
 
 const SPIN = new Quaternion();
 
-// a leaf's fall (leaf-fall): where it is across and down at each share of its time, from its sway
-// (sw), its drift (dx) and its drop (dy), easing in and out between them
 const fallAt = (sw: number, dx: number, dy: number): [number, number][] => [
   [0, 0],
   [sw, dy * 0.2],
@@ -70,11 +59,10 @@ type Leaf = {
   size: number;
   spin: number;
   turns: number;
-  /** how far into its spin it already is when it comes loose */
+
   lead: number;
 };
 
-/** Spots on the side of the crown we see where a leaf can come loose (three.js), seeded as on the map */
 function spotsOn(crown: Crown): Vector3[] {
   const [x, y, z] = crown.center;
   const c = [x, z, y + GROUND];
@@ -92,7 +80,6 @@ function spotsOn(crown: Crown): Vector3[] {
   return spots;
 }
 
-/** A leaf's outline: two curves meeting at its tip and stalk, a unit long (in winter, a lumpy round puff of snow) */
 function leafShape(): ShapeGeometry {
   const shape = new Shape();
   if (CLUMPS.on) {
@@ -110,7 +97,6 @@ function leafShape(): ShapeGeometry {
   return new ShapeGeometry(shape, 6);
 }
 
-/** The round trees' crowns, which shed leaves while the pointer is on them */
 export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
   const meshes = useRef<(Mesh | null)[]>([]);
   const leaves = useRef<(Leaf | null)[]>(Array.from({ length: LEAVES }, () => null));
@@ -136,7 +122,6 @@ export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
     [outline, ball, looks],
   );
 
-  /** Shakes n leaves loose from crown i */
   const shed = (i: number, n: number) => {
     const crown = crowns[i];
     const length = Math.max(0.2, 0.2 * crown.size);
@@ -179,7 +164,7 @@ export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
         mesh.visible = false;
         return;
       }
-      // where it has got to on its way down, easing in and out from each point of its path to the next
+
       const k = Math.min(1, age / leaf.length);
       let i = 0;
       while (i < FALL_AT.length - 2 && k > FALL_AT[i + 1]) i++;
@@ -190,7 +175,7 @@ export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
       mesh.position.copy(leaf.from).addScaledVector(RIGHT, across);
       mesh.position.y -= y0 + (y1 - y0) * f;
       looks[slot].opacity = k < 0.06 ? k / 0.06 : k > 0.8 ? (1 - k) / 0.2 : 1;
-      // its spin: tipped from -55 to 45 degrees and turned edge-on to 0.55 of its width, back and forth
+
       const spun = (age + leaf.lead) / leaf.spin;
       const round = Math.floor(spun);
       const swing =
@@ -202,7 +187,7 @@ export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
       mesh.quaternion
         .copy(FACING)
         .multiply(SPIN.setFromAxisAngle(TOWARD_LEAF, ((55 - 100 * swing) * Math.PI) / 180));
-      // (a clump of snow only tumbles a little)
+
       if (CLUMPS.on)
         mesh.scale.set(
           leaf.size * PICTURE * CLUMPS.size,
@@ -215,7 +200,6 @@ export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
   });
 
   const enter = (i: number) => (event: ThreeEvent<PointerEvent>) => {
-    // not while the map is being dragged
     if (event.buttons || shaking.current?.crown === i) return;
     shed(i, 3);
     shaking.current = { crown: i, next: now.current + SHAKE_EVERY };
@@ -226,7 +210,6 @@ export function FallingLeaves({ crowns }: { crowns: Crown[] }) {
 
   return (
     <group>
-      {/* where pointing starts it: a ball round each crown, as the prototype's ring round it */}
       {crowns.map((crown, i) => (
         <mesh
           key={i}

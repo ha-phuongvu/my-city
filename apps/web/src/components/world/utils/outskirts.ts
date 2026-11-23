@@ -21,15 +21,6 @@ import {
 } from "../constants/treeLayout.constants";
 import { isWinter } from "./season";
 
-// The land past the prototype's map: open meadow running on to the haze, its long grass and wild
-// flowers, patches of field flowers, and woods of round trees and pines in groves with big bushes
-// and the odd tree out on its own. None of it grows on the river, the lanes, the lawns or the plaza,
-// nor over what the prototype already has there (outskirtsMask.ts). It is grown here from a seed,
-// so it comes out the same every time, and it is drawn just like the map's own: the grass and
-// flowers by Grass.tsx, the patches by Fields.tsx and the trees by Foliage.tsx. Some of the round
-// trees are apple trees, copies of the map's own moved there, with their apples.
-
-/** A random number from 0 to 1, the same run every time from the same seed (mulberry32) */
 function random(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -55,7 +46,6 @@ function bits(packed: string) {
 const grassAt = bits(GRASS_CELLS);
 const treeAt = bits(TREE_CELLS);
 
-/** Smooth noise from 0 to 1, about `size` across */
 function noise(seed: number, size: number) {
   const corner = (i: number, j: number) => {
     let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(seed, 1442695041);
@@ -79,11 +69,6 @@ function noise(seed: number, size: number) {
 const between = (r: () => number, [a, b]: readonly [number, number]) => a + (b - a) * r();
 const pick = <T>(r: () => number, list: readonly T[]) => list[Math.floor(r() * list.length)];
 
-/**
- * The outskirts' grass and wild flowers, in the layout of world-grass.bin (blades 6 numbers each,
- * flowers 9), each one's own shape and colours borrowed from one of the prototype's, so they look
- * the same as the meadow they run on from
- */
 export function outskirtsGrass(blades: Int16Array, flowers: Int16Array) {
   const r = random(SEED);
   const B: number[] = [];
@@ -121,7 +106,6 @@ export function outskirtsGrass(blades: Int16Array, flowers: Int16Array) {
   return { blades: Int16Array.from(B), flowers: Int16Array.from(F) };
 }
 
-/** One of the map's apple trees, apples and all, moved to (x, z) */
 function appleTreeAt(template: AppleTreePlacement, x: number, z: number): AppleTreePlacement {
   const dx = x - template.x;
   const dz = z - template.z;
@@ -136,7 +120,6 @@ function appleTreeAt(template: AppleTreePlacement, x: number, z: number): AppleT
   };
 }
 
-/** The outskirts' woods: round trees, apple trees, pines and clumps of big bushes */
 function growWoods() {
   const r = random(SEED + 1);
   const grove = noise(SEED + 2, WOODS.grove);
@@ -170,7 +153,7 @@ function growWoods() {
         );
     }
   }
-  // (in winter the round trees where pines would nearly grow are pines, as big as the woods' pines)
+
   if (!isWinter()) return { round, pine, bush, apple };
   const [r0, r1] = ROUND_SIZE;
   const [p0, p1] = PINE_SIZE;
@@ -188,7 +171,6 @@ function growWoods() {
 
 export const OUTSKIRTS_TREES = growWoods();
 
-/** The outskirts' patches of field flowers, each a copy of one of the prototype's (`own`, in threes) moved there */
 export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
   const r = random(SEED + 4);
   const sets = Array.from({ length: Math.floor(own.length / 3) }, (_, i) =>
@@ -214,7 +196,7 @@ export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
         radius: p.radius,
         flowers: p.flowers.map((v, i) => (i % 5 === 0 ? v - cx + x : i % 5 === 1 ? v - cz + z : v)),
       }));
-      // every flower on open grass, and a step clear of every tree
+
       const spots = moved.flatMap((p) =>
         Array.from({ length: p.flowers.length / 5 }, (_, i) => [
           p.flowers[i * 5],
@@ -236,7 +218,6 @@ export function outskirtsPatches(own: FlowerPatch[]): FlowerPatch[] {
   return out;
 }
 
-/** A soft round outline through these points, each side bent into `steps` (the prototype's smoothLoop) */
 function smoothLoop(pts: [number, number][], steps: number): [number, number][] {
   const out: [number, number][] = [];
   const n = pts.length;
@@ -262,7 +243,6 @@ function smoothLoop(pts: [number, number][], steps: number): [number, number][] 
 
 export type MeadowPatch = { outline: [number, number][]; color: string; lift: number };
 
-/** The outskirts' painted meadow: the big patches first, then the small ones lying over them */
 function paintMeadow(): MeadowPatch[] {
   const r = random(SEED + 5);
   const { big, small, edge, lift } = MEADOW_PATCHES;
@@ -287,7 +267,7 @@ function paintMeadow(): MeadowPatch[] {
         const paint = color();
         if (Math.hypot(x, z) > edge) continue;
         const outline = smoothLoop(corners, 6);
-        // only on the open meadow, never over the river, the lanes or the prototype's own painting
+
         if (!outline.every(([px, pz]) => grassAt(px, pz))) continue;
         out.push({ outline, color: paint, lift: height });
       }

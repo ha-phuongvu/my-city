@@ -31,6 +31,10 @@ These stay plain strings, because they must match something outside our code exa
 - shader attribute and uniform names (`setAttribute("position", …)`) and GLB node names (`part("ball")`, `partsNamed("walls")`);
 - paths and URLs (`/models/fountain.glb`), CSS class names, translation keys, and text people read.
 
+### No comments in code
+
+Don't write comments (`//`, `/* */`, JSDoc, comments inside shader strings, CSS comments) in components, utils, app, i18n, scripts or `packages/db`. The one place comments belong is the constants files (`*.constants.ts`), where a short note says what each value or enum is.
+
 ### Constants and helpers
 
 - Module-level constant values live in a matching `<File>.constants.ts` under `apps/web/src/components/world/constants/`, in the same subfolder as the component (`environment/Grass.tsx` → `constants/environment/Grass.constants.ts`). Constants shared across folders or used by `utils/` stay at the `constants/` root.
@@ -44,7 +48,14 @@ These stay plain strings, because they must match something outside our code exa
 - `environment/`: nature and the land
 - `seasons/`: season-only extras
 - `cities/`: things placed across all cities, and `cities/<city>/` for each city's models (`plaza`, `story`, `music`, `game`, `movie`, `comic`, `future`)
-- `ui/`: flat overlays on the screen (calendar, record player, season switch)
+- `ui/`: flat overlays on the screen (calendar, record player)
+
+Every new file goes straight into its right place:
+
+- A new component goes in the folder above that matches what it is (a tree → `environment/`, a Music City model → `cities/music/`). Never leave it at the `world/` root or in a folder where it doesn't belong.
+- Its constants go in the mirrored `constants/` subfolder, and its CSS sits next to it.
+- If nothing fits, ask before making a new folder. Then add the folder to this list.
+- When a file moves, move its constants file with it and fix every import.
 
 ### Styles
 

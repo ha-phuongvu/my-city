@@ -18,21 +18,12 @@ import { useStill } from "../utils/pointing";
 import { DASHES, LIFT, PATTERN, RING_TIME } from "../constants/environment/Pond.constants";
 import { POND_LANES, POND_RINGS, POND_WATER } from "../constants/environment/pondLayout.constants";
 
-// The pond's water flowing, as on the prototype's map (its fx-pond): six pale streaks drift slowly
-// along the pond's length, and now and then a soft ring spreads out and fades, four of them in turn,
-// all kept to the water. It is drawn on the water as the prototype draws it on its picture: the
-// streaks are dashed lines 0.06 wide (white, 0.38 opaque) whose dashes slide one whole pattern (3.5)
-// along every 7, 8.6 or 10.2 seconds, and each ring is an ellipse 0.7 by 0.38 that grows from a fifth
-// of its size to 1.6 times it while it shows and fades, once every 6.8 seconds. With less motion the
-// streaks hold still and there are no rings.
-
-const VERTEX = /* glsl */ `
+const VERTEX = `
   #include <common>
   #include <fog_pars_vertex>
   varying vec2 vPicture;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
-    // the spot on the prototype's picture: its proj of the map point (x, y, z) = (x, the site's z, the site's y + 0.15)
     vPicture = vec2((world.x - world.z) * 0.8660254, (world.x + world.z) * 0.5 - (world.y + 0.15));
     vec4 mvPosition = viewMatrix * world;
     gl_Position = projectionMatrix * mvPosition;
@@ -40,10 +31,9 @@ const VERTEX = /* glsl */ `
   }
 `;
 
-const FRAGMENT = /* glsl */ `
+const FRAGMENT = `
   #include <common>
   #include <fog_pars_fragment>
-  // each streak's line: its points on the picture, and how far along the line each one is
   uniform vec3 uLanes[${POND_LANES.length * 13}];
   uniform vec4 uDashes[${POND_LANES.length}];
   uniform float uPairs[${POND_LANES.length}];
@@ -52,13 +42,11 @@ const FRAGMENT = /* glsl */ `
   uniform vec2 uRingNow[${POND_RINGS.length}];
   varying vec2 vPicture;
 
-  // how far along the line u is from a dash running from a to b, the pattern repeating every 3.5
   float offDash(float u, float a, float b) {
     float d = abs(mod(u - 0.5 * (a + b) + ${(PATTERN / 2).toFixed(2)}, ${PATTERN.toFixed(1)}) - ${(PATTERN / 2).toFixed(2)});
     return max(d - 0.5 * (b - a), 0.0);
   }
 
-  // how much of a line w wide covers this spot, d from its middle (smoothed over a pixel)
   float cover(float d, float w) {
     return clamp((0.5 * w - d) / max(fwidth(d), 1e-5) + 0.5, 0.0, 1.0);
   }
@@ -66,7 +54,6 @@ const FRAGMENT = /* glsl */ `
   void main() {
     float keep = 1.0;
     for (int i = 0; i < ${POND_LANES.length}; i++) {
-      // the nearest point on the streak's line, and how far along the line it is
       float best = 1e9;
       float along = 0.0;
       for (int j = 0; j < 12; j++) {
@@ -80,7 +67,6 @@ const FRAGMENT = /* glsl */ `
           along = from.z + h * length(ab);
         }
       }
-      // the dashes have slid uShift along it; their ends are round
       float u = along - uShift[i];
       vec4 p = uDashes[i];
       float off = offDash(u, 0.0, p.x);
@@ -88,7 +74,6 @@ const FRAGMENT = /* glsl */ `
       keep *= 1.0 - 0.38 * cover(length(vec2(off, best)), 0.06);
     }
     for (int k = 0; k < ${POND_RINGS.length}; k++) {
-      // an ellipse 0.7 by 0.38 at its size now, its line growing with it
       float s = uRingNow[k].x;
       vec2 r = vec2(0.7, 0.38) * s;
       vec2 q = vPicture - uRings[k];
@@ -104,7 +89,6 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
-/** CSS's ease-out (cubic-bezier(0, 0, 0.58, 1)) at x, 0 to 1 */
 function easeOut(x: number): number {
   const at = (t: number, p1: number, p2: number) =>
     3 * (1 - t) * (1 - t) * t * p1 + 3 * (1 - t) * t * t * p2 + t * t * t;
@@ -118,7 +102,6 @@ function easeOut(x: number): number {
   return at((lo + hi) / 2, 0, 1);
 }
 
-/** A ring's size and how strongly it shows, `phase` (0 to 1) of the way through its 6.8 s (the page's pd-ring keyframes) */
 function ringAt(phase: number): [scale: number, opacity: number] {
   const scale = phase < 0.45 ? 0.2 + 1.4 * easeOut(phase / 0.45) : 1.6;
   const opacity =
@@ -130,7 +113,6 @@ function ringAt(phase: number): [scale: number, opacity: number] {
   return [scale, opacity];
 }
 
-/** The pond's streaks and rings, on its water */
 export function Pond() {
   const still = useStill();
   const geometry = useMemo(() => {
@@ -146,7 +128,6 @@ export function Pond() {
     return g;
   }, []);
   const material = useMemo(() => {
-    // each point of each streak's line, with how far along the line it is
     const lanes = POND_LANES.flatMap((lane) => {
       let along = 0;
       return lane.map((p, j) => {
@@ -170,10 +151,10 @@ export function Pond() {
       ]),
       transparent: true,
       depthWrite: false,
-      // (its triangles face whichever way the outline went round)
+
       side: DoubleSide,
       fog: true,
-      // it lies just above the water, so it's drawn a little nearer than it is
+
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -4,
@@ -187,12 +168,12 @@ export function Pond() {
     if (still || !look) return;
     const t = clock.elapsedTime;
     const shift = look.uniforms.uShift.value as number[];
-    // each streak's own speed (7, 8.6 or 10.2 s for a whole pattern), each starting 1.3 s on from the last
+
     for (let i = 0; i < shift.length; i++) {
       const time = 7 + (i % 3) * 1.6;
       shift[i] = PATTERN * (((t + i * 1.3) / time) % 1);
     }
-    // each ring 1.7 s on from the last
+
     const rings = look.uniforms.uRingNow.value as Vector2[];
     rings.forEach((ring, k) => ring.set(...ringAt(((t + k * 1.7) / RING_TIME) % 1)));
   });

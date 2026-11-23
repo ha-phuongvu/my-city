@@ -1,4 +1,4 @@
-// The fixed values Winter.tsx works with: the falling snow, the plaza's Christmas tree and the presents
+// The fixed values Winter.tsx works with: the falling snow, the Christmas tree by the plaza and the presents
 // under it, the fairy lights on the walls, and the snowmen (the winter prototype's XMAS3D). Places are
 // on the map, in three.js's x and z.
 
@@ -30,30 +30,30 @@ export const SNOWFALL = {
   seed: 2512,
 } as const;
 
-// The plaza's tree: where its foot stands, how tall (to the star) and how wide at the bottom, standing
-// on the paving (`foot` up); how many tiers, each so much of the one under it (taller, wider), and how
-// far up the one below each starts; its greens, its snow and its trunk; the garland (turns, thickness,
-// colour); the baubles hung from each tier's tips (how many on each, from the bottom; their colours;
-// their size, of the tier's width); the fairy lights on it (how many, how many turns); the star
+// The Christmas tree, a fir like a Christmas card's, on the snow just outside the plaza's wall, left of
+// the fountain as the opening view looks, between the lanes to Comic City and Game City: where its foot
+// stands and how high over the ground, how tall (to the star) and how wide at the bottom, and how much
+// of its trunk shows under the branches; how many tiers, each so much of the one under it (taller,
+// wider), how far up the one below each starts, and how its top curves (1 a straight cone, less flaring
+// out toward the rim like a skirt); `size`: all of it, its drift of snow and its presents too, is drawn
+// that many times as big round its foot
 export const TREE = {
-  at: [-3.45, 0],
-  foot: 0.062,
-  height: 7.2,
-  radius: 1.35,
+  at: [-6.65, 6.65],
+  foot: 0.01,
+  height: 7.6,
+  radius: 2,
+  bare: 1.8,
   tiers: 6,
-  shrink: [0.86, 0.84],
+  shrink: [0.88, 0.8],
   over: 0.5,
-  green: ["#2c5a45", "#3a6c53", "#244a3a"],
+  bow: 0.8,
+  size: 2,
+  // its greens (the sunny tips, the middle, the dark notches, the shade under each tier), its snow
+  // (lumpy bands along the tiers and a cap on top) and its trunk (and the bark's dark lines)
+  green: ["#3f8c52", "#2b6a42", "#1d4c31", "#153a26"],
   snow: "#f3f7fb",
-  trunk: "#6a4330",
-  garland: { turns: 3.2, thick: 0.05, color: "#e4b445" },
-  baubles: {
-    count: [8, 7, 6, 5, 3, 2],
-    colors: ["#c8323a", "#e7b545", "#d3dbe4", "#c8323a", "#e7b545"],
-    size: 0.1,
-    cap: "#d8d2c4",
-  },
-  lights: { count: 84, turns: 4.5 },
+  trunk: ["#7a4a2c", "#55311d"],
+  // the gold star on top, and the soft warm haze round it (only a haze, no disc of its own)
   star: {
     outer: 0.46,
     inner: 0.19,
@@ -64,32 +64,50 @@ export const TREE = {
     twinkle: 1.6,
   },
 } as const;
-// a tier's outline from its top down round its drooping rim and back under to the trunk ([out, up] of
-// its width and height)
-export const TIER: [number, number][] = [
-  [0, 1],
-  [0.12, 0.89],
-  [0.24, 0.78],
-  [0.38, 0.63],
-  [0.52, 0.48],
-  [0.66, 0.33],
-  [0.8, 0.18],
-  [0.9, 0.09],
-  [1, 0],
-  [0.9, -0.07],
-  [0.55, 0.02],
-  [0.15, 0.14],
-];
+// its spiky branch tips: how many round the bottom tier and at least round the top one, how far out
+// they start, how far in the notches between them are and how far the tips hang down (of a tier's
+// width and height)
+export const TIPS = { count: 30, least: 14, from: 0.8, notch: 0.2, droop: 0.2 } as const;
+// The strings of fairy lights on the tree: how many, from near the bottom to near the top; each hung in
+// swags about `swag` long that sag `sag`, with a bulb every `spacing`; the wire's colour and thickness;
+// the bulbs' colours, in turn along the strings, and a bulb's size. They come on a colour at a time in
+// that order (red, yellow, blue, green, purple), each for `step` seconds, fading in and out, while the
+// others are `dim`
+export const TREE_LIGHTS = {
+  strings: 6,
+  swag: 1.1,
+  sag: 0.16,
+  spacing: 0.2,
+  wire: "#2a2420",
+  thick: 0.014,
+  colors: ["#ff3d3d", "#ffc83c", "#4aa8ff", "#5ad46c", "#c46cff"],
+  size: 0.3,
+  step: 1.4,
+  dim: 0.45,
+} as const;
+// the red stockings hung from its tips: [tier, from the bottom; turn from facing the opening view,
+// degrees, + to the right]; their colour and their white cuffs
+export const STOCKINGS = {
+  at: [
+    [4, 24],
+    [3, 44],
+    [2, -36],
+  ],
+  color: "#c8323a",
+  cuff: "#f6f2ea",
+} as const;
+// a bulb on the tree's strings has its colour's place in their round; any other glow has this
+export const NO_CHASE = -1;
 
 // The presents under the tree: [turn round the tree (degrees, 45 toward the opening view), how far out,
 // width, depth, height, box, ribbon]
 export const PRESENTS: [number, number, number, number, number, string, string][] = [
-  [30, 1.05, 0.62, 0.5, 0.42, "#c83a3a", "#f1c24f"],
-  [62, 1.25, 0.48, 0.48, 0.55, "#2f6b4f", "#d63c3c"],
-  [5, 1.3, 0.42, 0.42, 0.3, "#f3e8d2", "#c83a3a"],
-  [95, 0.95, 0.55, 0.4, 0.36, "#3f6ca8", "#e9eef4"],
-  [-30, 1.1, 0.5, 0.5, 0.48, "#e4b444", "#c83a3a"],
-  [150, 1.05, 0.46, 0.46, 0.34, "#c83a3a", "#2f6b4f"],
+  [80, 1.05, 0.62, 0.5, 0.42, "#c83a3a", "#f1c24f"],
+  [112, 1.25, 0.48, 0.48, 0.55, "#2f6b4f", "#d63c3c"],
+  [-48, 1.3, 0.42, 0.42, 0.3, "#f3e8d2", "#c83a3a"],
+  [145, 0.95, 0.55, 0.4, 0.36, "#3f6ca8", "#e9eef4"],
+  [-80, 1.1, 0.5, 0.5, 0.48, "#e4b444", "#c83a3a"],
+  [185, 1.05, 0.46, 0.46, 0.34, "#c83a3a", "#2f6b4f"],
 ];
 
 // The fairy lights on the walls: how far apart the bulbs are, the hooks they hang from (every so many

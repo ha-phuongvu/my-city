@@ -5,6 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
   Color,
+  type Group,
   CylinderGeometry,
   InstancedBufferAttribute,
   type InstancedMesh,
@@ -33,34 +34,32 @@ import {
 } from "../constants/environment/Fields.constants";
 import { useModelSize } from "../core/Model";
 import { through } from "../utils/cycle";
+import { useStill } from "../utils/pointing";
 import { useRoomLight, withRoomLight } from "../utils/roomLight";
+import { isWinter } from "../utils/season";
+import { Cover, Flakes, inOval } from "../utils/snowCover";
 
-// The field flowers growing wild in the grass, in patches where the prototype's world map has its
-// spaces for flowers (fieldLayout.ts): one big patch with two small ones beside it in each; and more
-// out over the outskirts (outskirts.ts).
-
-/** CUT_BACK just after it is cut back, then how far grown, from 0 (bare stems) to 1 (in full flower) */
 type Stage = number;
 
 type Rgb = [number, number, number];
 const rgb = (hex: string): Rgb => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
 const toHex = (c: Rgb) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
-/** The colour k of the way from a to b, mixed as the prototype mixes its colours (its tint) */
+
 const tint = (a: string, b: string, k: number) => {
   const p = rgb(a);
   const q = rgb(b);
   return toHex(p.map((v, i) => v + (q[i] - v) * k) as Rgb);
 };
 
-// when each growing patch started the round it's on, on the canvas clock, and the patches the pointer is on
 const started = new Map<FlowerPatch, number>();
 const pointed = new Set<FlowerPatch>();
+const covers = new Map(PATCHES.map((patch) => [patch, new Cover()]));
 
 function startGrowing(patch: FlowerPatch, now: number) {
-  if (!started.has(patch)) started.set(patch, now);
+  if (isWinter()) covers.get(patch)?.start();
+  else if (!started.has(patch)) started.set(patch, now);
 }
 
-/** How far the patch has grown by `now`: it grows round after round while it's pointed at, then finishes the round it's on */
 function stageOf(patch: FlowerPatch, now: number): Stage {
   const start = started.get(patch);
   if (start === undefined) return 1;
@@ -80,9 +79,10 @@ function stageOf(patch: FlowerPatch, now: number): Stage {
 
 const unitDisc = new CylinderGeometry(1, 1, 1, 24);
 
-/** Where pointing at a patch of flowers (or tapping it) starts it growing: an oval a little bigger than the patch, and the air over it (unseen) */
 function GrowHits() {
   const clock = useThree((state) => state.clock);
+  const still = useStill();
+  if (still && isWinter()) return null;
   const tap = (patch: FlowerPatch) => () => startGrowing(patch, clock.elapsedTime);
   const over = (patch: FlowerPatch) => () => {
     pointed.add(patch);
@@ -104,12 +104,10 @@ function GrowHits() {
   ));
 }
 
-/** Where pointing at the patches of flowers grows them. It needs no models, so it works at once. */
 export function Fields() {
   return <GrowHits />;
 }
 
-/** The colour that, multiplying the plant model's own colours, turns `ripe` into `color` */
 function multiplier(color: string, ripe: string): Color {
   const want = new Color(color);
   const have = new Color(ripe);
@@ -122,11 +120,6 @@ function multiplier(color: string, ripe: string): Color {
 
 type Look = { tall: number; wide: number; tint: Color };
 
-/**
- * How a field flower stands at `stage` (fieldFlower): cut back to its leaves, it spreads them, puts
- * up its stem, and its bud swells from green to the petals' colour and opens, each flower a little
- * after or before the next (`late`, 0 to 1)
- */
 function flowerAt(stage: Stage, petals: string, late: number): Look {
   const k = stage === CUT_BACK ? 0 : stage;
   if (k >= 1) return { tall: 1, wide: 1, tint: WHITE };
@@ -141,19 +134,22 @@ function flowerAt(stage: Stage, petals: string, late: number): Look {
   };
 }
 
-// The flower model's petals are pink; a flower in a white or yellow drift has them painted its own
-// colour, keeping their light and shade. Pink is told from the model's greens, its yellow middles
-// and its browns by being much redder than green, with about as much blue as green.
 function petalColors(material: MeshStandardMaterial) {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
-        "#include <common>\nattribute vec3 petals;\nvarying vec3 vPetals;",
+        "#include <common>\nattribute vec3 petals;\nattribute float cover;\nvarying vec3 vPetals;\nvarying float vCover;",
       )
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPetals = petals;");
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvPetals = petals;\nvCover = cover;",
+      );
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vPetals;")
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vPetals;\nvarying float vCover;",
+      )
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
@@ -165,20 +161,17 @@ function petalColors(material: MeshStandardMaterial) {
           FROST > 0
             ? `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${FROST_COLOR.toArray()
                 .map((v) => v.toFixed(4))
-                .join(", ")}), ${FROST.toFixed(2)});`
+                .join(", ")}), ${FROST.toFixed(2)} * vCover);`
             : ""
         }`,
       );
   };
   material.customProgramCacheKey = () => "petals";
+  if (FROST > 0) material.defines = { ...material.defines, SNOW_HERE: "vCover" };
 }
 
 type Part = { mesh: Mesh; local: Matrix4 };
 
-/**
- * The field flowers growing wild in their patches, one draw call per part of the flower model. A
- * growing patch's flowers are rewritten every frame while it grows: their size, and their tint.
- */
 export function FieldPlants() {
   const { scene } = useGLTF(FLOWER, "/draco/");
   const modelHeight = useModelSize(FLOWER).y;
@@ -194,7 +187,7 @@ export function FieldPlants() {
     });
     return found;
   }, [scene]);
-  // a flower's petal colour is one more thing each one carries
+
   const shapes = useMemo(
     () =>
       parts.map(({ mesh }) => {
@@ -203,6 +196,10 @@ export function FieldPlants() {
         const color = new Color();
         FLOWERS.forEach((plant, i) => color.set(plant.petals).toArray(petals, i * 3));
         shape.setAttribute("petals", new InstancedBufferAttribute(petals, 3));
+        shape.setAttribute(
+          "cover",
+          new InstancedBufferAttribute(new Float32Array(FLOWERS.length).fill(1), 1),
+        );
         return shape;
       }),
     [parts],
@@ -216,12 +213,33 @@ export function FieldPlants() {
       }),
     [parts, light],
   );
-  // which flowers belong to each patch, and the stage each was last drawn at
+
   const groups = useMemo(
     () => PATCHES.map((patch) => FLOWERS.flatMap((plant, i) => (plant.patch === patch ? [i] : []))),
     [],
   );
   const drawn = useRef<Stage[]>(PATCHES.map(() => -1));
+  const falling = useRef<Group>(null);
+  const flakes = useRef(new Map<FlowerPatch, Flakes>());
+  const flakesOf = (patch: FlowerPatch) => {
+    let made = flakes.current.get(patch);
+    if (!made) {
+      made = new Flakes(
+        inOval(patch.center[0], patch.center[1], patch.radius[0] * 1.1, patch.radius[1] * 1.1),
+        0,
+      );
+      flakes.current.set(patch, made);
+      falling.current?.add(made.points);
+    }
+    return made;
+  };
+  const whiten = (members: number[], white: number) => {
+    for (const shape of shapes) {
+      const cover = shape.getAttribute("cover") as InstancedBufferAttribute;
+      for (const i of members) cover.setX(i, white);
+      cover.needsUpdate = true;
+    }
+  };
   const write = useMemo(() => {
     const matrix = new Matrix4();
     const turn = new Quaternion();
@@ -260,7 +278,23 @@ export function FieldPlants() {
     },
     [materials, shapes],
   );
-  useFrame(({ clock }) => {
+  useEffect(() => {
+    const made = flakes.current;
+    return () => {
+      made.forEach((f) => f.dispose());
+      made.clear();
+    };
+  }, []);
+  useFrame(({ clock }, delta) => {
+    if (isWinter()) {
+      PATCHES.forEach((patch, g) => {
+        const cover = covers.get(patch);
+        if (!cover) return;
+        if (cover.step(delta)) whiten(groups[g], cover.white);
+        if (cover.running || flakes.current.has(patch))
+          flakesOf(patch).fall(clock.elapsedTime, cover.running);
+      });
+    }
     PATCHES.forEach((patch, g) => {
       const stage = stageOf(patch, clock.elapsedTime);
       if (stage === drawn.current[g]) return;
@@ -268,14 +302,19 @@ export function FieldPlants() {
       write(groups[g], stage);
     });
   });
-  return parts.map(({ mesh }, p) => (
-    <instancedMesh
-      key={mesh.uuid}
-      ref={(instanced) => {
-        refs.current[p] = instanced;
-      }}
-      args={[shapes[p], materials[p], FLOWERS.length]}
-      receiveShadow
-    />
-  ));
+  return (
+    <>
+      {parts.map(({ mesh }, p) => (
+        <instancedMesh
+          key={mesh.uuid}
+          ref={(instanced) => {
+            refs.current[p] = instanced;
+          }}
+          args={[shapes[p], materials[p], FLOWERS.length]}
+          receiveShadow
+        />
+      ))}
+      <group ref={falling} />
+    </>
+  );
 }
