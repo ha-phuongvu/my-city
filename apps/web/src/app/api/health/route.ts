@@ -1,12 +1,21 @@
 import { ping } from "@my-city/db";
 import { connection } from "next/server";
 
-// For uptime checks (NFR-OBS-01): 200 when the app and its database answer, 503 when the database doesn't
+enum DbState {
+  Up = "up",
+  Down = "down",
+}
+
+enum Health {
+  Ok = "ok",
+  Degraded = "degraded",
+}
+
 export async function GET() {
-  await connection(); // always run at request time, never prerendered
-  const db = (await ping()) ? "up" : "down";
+  await connection();
+  const db = (await ping()) ? DbState.Up : DbState.Down;
   return Response.json(
-    { status: db === "up" ? "ok" : "degraded", db },
-    { status: db === "up" ? 200 : 503, headers: { "Cache-Control": "no-store" } },
+    { status: db === DbState.Up ? Health.Ok : Health.Degraded, db },
+    { status: db === DbState.Up ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );
 }

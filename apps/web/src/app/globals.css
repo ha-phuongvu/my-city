@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* The page is only the 3D world. Behind it, while three.js loads, is the sky color (HOWL.light.sky.top). */
 body {
   background: #4b9fc0;
 }

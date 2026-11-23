@@ -4,3 +4,5 @@ documents/
 **/public/draco/
 packages/db/drizzle/
 apps/web/AGENTS.md
+# generated typeface data for the opening (fonts/*.typeface.json)
+apps/web/public/fonts/
