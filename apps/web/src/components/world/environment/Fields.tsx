@@ -5,7 +5,6 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
   Color,
-  type Group,
   CylinderGeometry,
   InstancedBufferAttribute,
   type InstancedMesh,
@@ -23,8 +22,6 @@ import {
   CUT_BACK,
   FLOWER,
   FLOWERS,
-  FROST,
-  FROST_COLOR,
   GROW,
   LEAF,
   PATCHES,
@@ -34,10 +31,9 @@ import {
 } from "../constants/environment/Fields.constants";
 import { useModelSize } from "../core/Model";
 import { through } from "../utils/cycle";
-import { useStill } from "../utils/pointing";
 import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import { isWinter } from "../utils/season";
-import { Cover, Flakes, inOval } from "../utils/snowCover";
+import { SnowPiles } from "./SnowPiles";
 
 type Stage = number;
 
@@ -53,11 +49,8 @@ const tint = (a: string, b: string, k: number) => {
 
 const started = new Map<FlowerPatch, number>();
 const pointed = new Set<FlowerPatch>();
-const covers = new Map(PATCHES.map((patch) => [patch, new Cover()]));
-
 function startGrowing(patch: FlowerPatch, now: number) {
-  if (isWinter()) covers.get(patch)?.start();
-  else if (!started.has(patch)) started.set(patch, now);
+  if (!started.has(patch)) started.set(patch, now);
 }
 
 function stageOf(patch: FlowerPatch, now: number): Stage {
@@ -81,8 +74,6 @@ const unitDisc = new CylinderGeometry(1, 1, 1, 24);
 
 function GrowHits() {
   const clock = useThree((state) => state.clock);
-  const still = useStill();
-  if (still && isWinter()) return null;
   const tap = (patch: FlowerPatch) => () => startGrowing(patch, clock.elapsedTime);
   const over = (patch: FlowerPatch) => () => {
     pointed.add(patch);
@@ -105,7 +96,7 @@ function GrowHits() {
 }
 
 export function Fields() {
-  return <GrowHits />;
+  return isWinter() ? <SnowPiles /> : <GrowHits />;
 }
 
 function multiplier(color: string, ripe: string): Color {
@@ -139,40 +130,30 @@ function petalColors(material: MeshStandardMaterial) {
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
-        "#include <common>\nattribute vec3 petals;\nattribute float cover;\nvarying vec3 vPetals;\nvarying float vCover;",
+        "#include <common>\nattribute vec3 petals;\nvarying vec3 vPetals;",
       )
-      .replace(
-        "#include <begin_vertex>",
-        "#include <begin_vertex>\nvPetals = petals;\nvCover = cover;",
-      );
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPetals = petals;");
     shader.fragmentShader = shader.fragmentShader
-      .replace(
-        "#include <common>",
-        "#include <common>\nvarying vec3 vPetals;\nvarying float vCover;",
-      )
+      .replace("#include <common>", "#include <common>\nvarying vec3 vPetals;")
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
         vec3 seen = sqrt(diffuseColor.rgb);
         float pink = smoothstep(0.25, 0.4, seen.r - seen.g) * smoothstep(-0.15, 0.0, seen.b - seen.g);
         float shade = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)) / ${PINK_SHADE.toFixed(2)};
-        diffuseColor.rgb = mix(diffuseColor.rgb, vPetals * shade, pink);
-        ${
-          FROST > 0
-            ? `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${FROST_COLOR.toArray()
-                .map((v) => v.toFixed(4))
-                .join(", ")}), ${FROST.toFixed(2)} * vCover);`
-            : ""
-        }`,
+        diffuseColor.rgb = mix(diffuseColor.rgb, vPetals * shade, pink);`,
       );
   };
   material.customProgramCacheKey = () => "petals";
-  if (FROST > 0) material.defines = { ...material.defines, SNOW_HERE: "vCover" };
 }
 
 type Part = { mesh: Mesh; local: Matrix4 };
 
 export function FieldPlants() {
+  return isWinter() ? null : <Flowers />;
+}
+
+function Flowers() {
   const { scene } = useGLTF(FLOWER, "/draco/");
   const modelHeight = useModelSize(FLOWER).y;
   const light = useRoomLight();
@@ -196,10 +177,6 @@ export function FieldPlants() {
         const color = new Color();
         FLOWERS.forEach((plant, i) => color.set(plant.petals).toArray(petals, i * 3));
         shape.setAttribute("petals", new InstancedBufferAttribute(petals, 3));
-        shape.setAttribute(
-          "cover",
-          new InstancedBufferAttribute(new Float32Array(FLOWERS.length).fill(1), 1),
-        );
         return shape;
       }),
     [parts],
@@ -219,27 +196,6 @@ export function FieldPlants() {
     [],
   );
   const drawn = useRef<Stage[]>(PATCHES.map(() => -1));
-  const falling = useRef<Group>(null);
-  const flakes = useRef(new Map<FlowerPatch, Flakes>());
-  const flakesOf = (patch: FlowerPatch) => {
-    let made = flakes.current.get(patch);
-    if (!made) {
-      made = new Flakes(
-        inOval(patch.center[0], patch.center[1], patch.radius[0] * 1.1, patch.radius[1] * 1.1),
-        0,
-      );
-      flakes.current.set(patch, made);
-      falling.current?.add(made.points);
-    }
-    return made;
-  };
-  const whiten = (members: number[], white: number) => {
-    for (const shape of shapes) {
-      const cover = shape.getAttribute("cover") as InstancedBufferAttribute;
-      for (const i of members) cover.setX(i, white);
-      cover.needsUpdate = true;
-    }
-  };
   const write = useMemo(() => {
     const matrix = new Matrix4();
     const turn = new Quaternion();
@@ -278,23 +234,7 @@ export function FieldPlants() {
     },
     [materials, shapes],
   );
-  useEffect(() => {
-    const made = flakes.current;
-    return () => {
-      made.forEach((f) => f.dispose());
-      made.clear();
-    };
-  }, []);
-  useFrame(({ clock }, delta) => {
-    if (isWinter()) {
-      PATCHES.forEach((patch, g) => {
-        const cover = covers.get(patch);
-        if (!cover) return;
-        if (cover.step(delta)) whiten(groups[g], cover.white);
-        if (cover.running || flakes.current.has(patch))
-          flakesOf(patch).fall(clock.elapsedTime, cover.running);
-      });
-    }
+  useFrame(({ clock }) => {
     PATCHES.forEach((patch, g) => {
       const stage = stageOf(patch, clock.elapsedTime);
       if (stage === drawn.current[g]) return;
@@ -302,19 +242,14 @@ export function FieldPlants() {
       write(groups[g], stage);
     });
   });
-  return (
-    <>
-      {parts.map(({ mesh }, p) => (
-        <instancedMesh
-          key={mesh.uuid}
-          ref={(instanced) => {
-            refs.current[p] = instanced;
-          }}
-          args={[shapes[p], materials[p], FLOWERS.length]}
-          receiveShadow
-        />
-      ))}
-      <group ref={falling} />
-    </>
-  );
+  return parts.map(({ mesh }, p) => (
+    <instancedMesh
+      key={mesh.uuid}
+      ref={(instanced) => {
+        refs.current[p] = instanced;
+      }}
+      args={[shapes[p], materials[p], FLOWERS.length]}
+      receiveShadow
+    />
+  ));
 }

@@ -76,16 +76,13 @@ const SNOW_GLSL = `
   uniform vec3 snowShade;
   uniform float snowCover;
   varying float vSnowUp;
-  #ifndef SNOW_HERE
-    #define SNOW_HERE 1.0
-  #endif
 `;
 const SNOW_FRAGMENT = `
   {
     float up = gl_FrontFacing ? vSnowUp : -vSnowUp;
     float f = clamp((up - ${SNOW.from.toFixed(3)}) / ${(SNOW.to - SNOW.from).toFixed(3)}, 0.0, 1.0);
     vec3 snow = mix(snowShade, snowLight, clamp(up, 0.0, 1.0));
-    gl_FragColor.rgb = mix(gl_FragColor.rgb, snow, f * f * (3.0 - 2.0 * f) * ${SNOW.most.toFixed(3)} * snowCover * SNOW_HERE);
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, snow, f * f * (3.0 - 2.0 * f) * ${SNOW.most.toFixed(3)} * snowCover);
   }
 `;
 

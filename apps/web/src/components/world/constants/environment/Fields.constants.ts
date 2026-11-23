@@ -3,7 +3,6 @@
 import { Color } from "three";
 import { FLOWER_COLORS, FLOWER_PATCHES, type FlowerPatch } from "../fieldLayout.constants";
 import { outskirtsPatches } from "../../utils/outskirts";
-import { bySeason } from "../../utils/season";
 
 export const FLOWER = "/models/flower.glb";
 
@@ -27,11 +26,6 @@ export const LEAF = "#568f52";
 export const WHITE = new Color(1, 1, 1);
 
 export const PINK_SHADE = 0.4;
-
-// In winter the patches stand under snow, as on the winter prototype: every part of a flower is
-// frosted this far toward the snow's white (none in summer)
-export const FROST = bySeason(0, 0.62);
-export const FROST_COLOR = new Color("#f4f7fb");
 
 export type Plant = {
   x: number;
