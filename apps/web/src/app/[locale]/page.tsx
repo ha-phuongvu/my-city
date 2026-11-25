@@ -10,6 +10,7 @@ export default async function WorldPage() {
     <main className="fixed inset-0">
       <World
         label={t("canvasLabel")}
+        loading={t("opening.loading")}
         opening={{
           enter: t("opening.enter"),
           building: t("opening.building"),

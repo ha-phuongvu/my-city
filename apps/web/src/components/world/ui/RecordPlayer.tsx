@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BACK, DECK, PLAYLIST, PlayState } from "../constants/ui/RecordPlayer.constants";
+import {
+  BACK,
+  BLOCKED,
+  DECK,
+  HAND_EVENTS,
+  PLAYLIST,
+  PlayState,
+} from "../constants/ui/RecordPlayer.constants";
 import "./RecordPlayer.css";
 import { useStill } from "../utils/pointing";
 
@@ -14,6 +21,8 @@ export type PlayerWords = {
   next: string;
   empty: string;
 };
+
+const FIRST = PLAYLIST[0]?.src;
 
 export function RecordPlayer({ words, start }: { words: PlayerWords; start: boolean }) {
   const still = useStill();
@@ -33,9 +42,21 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     last: 0,
   });
   const playing = useRef(false);
-
-  const goOn = useRef(false);
+  const box = useRef<HTMLDivElement>(null);
+  const [needsHand, setNeedsHand] = useState(false);
   const current = PLAYLIST[song];
+
+  const sound = useCallback(() => {
+    const a = audio.current;
+    if (!a) return;
+    a.play().catch((error: unknown) => {
+      if (!(error instanceof DOMException) || error.name !== BLOCKED) return;
+      playing.current = false;
+      deck.current.landing = 0;
+      setState(PlayState.Paused);
+      setNeedsHand(true);
+    });
+  }, []);
 
   const tick = useCallback(() => {
     const d = deck.current;
@@ -48,7 +69,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
       const on = playing.current;
       if (on && d.landing && now >= d.landing && a) {
         d.landing = 0;
-        void a.play().catch(() => {});
+        sound();
       }
       const p = a && a.duration ? Math.min(1, a.currentTime / a.duration) : 0;
       const A = DECK.arm;
@@ -67,16 +88,35 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
       else d.raf = 0;
     };
     d.raf = requestAnimationFrame(step);
-  }, [still]);
+  }, [still, sound]);
 
-  const play = useCallback(() => {
-    if (!audio.current || playing.current) return;
-    playing.current = true;
-    setState(PlayState.Playing);
+  const play = useCallback(
+    (byHand = false) => {
+      if (!audio.current || playing.current) return;
+      playing.current = true;
+      setState(PlayState.Playing);
+      if (byHand) {
+        deck.current.landing = 0;
+        sound();
+      } else deck.current.landing = performance.now() + (still ? 0 : DECK.swing * 1000);
+      tick();
+    },
+    [still, tick, sound],
+  );
 
-    deck.current.landing = performance.now() + (still ? 0 : DECK.swing * 1000);
+  useEffect(() => {
+    if (!needsHand) return;
     tick();
-  }, [still, tick]);
+    const go = (e: Event) => {
+      if (box.current?.contains(e.target as Node)) return;
+      setNeedsHand(false);
+      if (!deck.current.chose) play(true);
+    };
+    for (const kind of HAND_EVENTS) window.addEventListener(kind, go);
+    return () => {
+      for (const kind of HAND_EVENTS) window.removeEventListener(kind, go);
+    };
+  }, [needsHand, play, tick]);
 
   const pause = () => {
     if (!playing.current) return;
@@ -87,27 +127,19 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     tick();
   };
 
-  const load = (i: number, go: boolean) => {
-    audio.current?.pause();
+  const load = (i: number, go: boolean, byHand: boolean) => {
+    const a = audio.current;
+    a?.pause();
     playing.current = false;
-
-    if (i === song && audio.current) {
-      audio.current.currentTime = 0;
-      setState(PlayState.Stopped);
-      if (go) play();
-      else tick();
-      return;
+    if (a) {
+      if (i === song) a.currentTime = 0;
+      else a.src = PLAYLIST[i].src;
     }
-    goOn.current = go;
     setSong(i);
     setState(PlayState.Stopped);
-    tick();
+    if (go) play(byHand);
+    else tick();
   };
-  useEffect(() => {
-    if (!goOn.current) return;
-    goOn.current = false;
-    play();
-  }, [song, play]);
 
   const skip = (d: number) => {
     const a = audio.current;
@@ -117,7 +149,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
       a.currentTime = 0;
       return;
     }
-    load((song + d + PLAYLIST.length) % PLAYLIST.length, going);
+    load((song + d + PLAYLIST.length) % PLAYLIST.length, going, true);
   };
 
   useEffect(() => {
@@ -136,6 +168,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
 
   return (
     <div
+      ref={box}
       className="rp-player"
       role="group"
       aria-label={state === PlayState.Playing ? words.playing : words.label}
@@ -146,12 +179,10 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     >
       {current && (
         <audio
-          key={current.src}
           ref={audio}
-          src={current.src}
+          src={FIRST}
           preload="auto"
-
-          onEnded={() => load((song + 1) % PLAYLIST.length, true)}
+          onEnded={() => load((song + 1) % PLAYLIST.length, true, false)}
         />
       )}
       <svg viewBox="0 0 240 236" aria-hidden="true">
@@ -260,8 +291,9 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
           disabled={!current}
           onClick={() => {
             deck.current.chose = true;
+            setNeedsHand(false);
             if (playing.current) pause();
-            else play();
+            else play(true);
           }}
         >
           <svg viewBox="0 0 14 14" aria-hidden="true">

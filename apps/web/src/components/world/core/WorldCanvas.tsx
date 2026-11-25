@@ -15,6 +15,7 @@ import {
 import {
   BackSide,
   Color,
+  DefaultLoadingManager,
   Float32BufferAttribute,
   type Mesh,
   Raycaster,
@@ -63,7 +64,13 @@ import { useUiSize } from "../utils/uiSize";
 
 export type FrameWords = { language: Language; calendar: CalendarWords; player: PlayerWords };
 
-type Props = { label: string; opening: OpeningWords; frame: FrameWords };
+type Props = {
+  label: string;
+  opening: OpeningWords;
+  frame: FrameWords;
+  onProgress: (share: number) => void;
+  onShown: () => void;
+};
 
 const clamp = (value: number, [low, high]: readonly [number, number]) =>
   Math.max(low, Math.min(high, value));
@@ -383,10 +390,20 @@ function Landmarks() {
   );
 }
 
-export default function WorldCanvas({ label, opening, frame }: Props) {
+export default function WorldCanvas({ label, opening, frame, onProgress, onShown }: Props) {
   const intro = useRef<Intro>({ on: true, arrived: false });
   const [welcome, setWelcome] = useState(true);
   useUiSize();
+  useLayoutEffect(() => {
+    const before = DefaultLoadingManager.onProgress;
+    DefaultLoadingManager.onProgress = (url, loaded, total) => {
+      before?.(url, loaded, total);
+      if (total) onProgress(loaded / total);
+    };
+    return () => {
+      DefaultLoadingManager.onProgress = before;
+    };
+  }, [onProgress]);
   return (
     <>
       <Canvas
@@ -432,6 +449,7 @@ export default function WorldCanvas({ label, opening, frame }: Props) {
           <Opening
             intro={intro}
             words={opening}
+            onShown={onShown}
             onDone={() => {
               intro.current.on = false;
               setWelcome(false);

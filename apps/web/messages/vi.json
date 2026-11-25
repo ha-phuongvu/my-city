@@ -6,6 +6,7 @@
   "World": {
     "canvasLabel": "Bản đồ thế giới 3D: đài phun nước ở Quảng trường Thế giới giữa đồng cỏ. Kéo để xoay quanh; các phím mũi tên để xoay và nghiêng.",
     "opening": {
+      "loading": "Đang tải",
       "enter": "Vào thế giới của tôi",
       "building": "Chào mừng đến thế giới của tôi. Đang dựng thế giới…",
       "buildingWinter": "Giáng sinh vui vẻ, chào mừng đến thế giới của tôi. Đang dựng thế giới…",

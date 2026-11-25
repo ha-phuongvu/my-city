@@ -6,6 +6,7 @@
   "World": {
     "canvasLabel": "3D world map: the World Plaza fountain on the meadow. Drag to turn it round; the arrow keys turn and tilt it.",
     "opening": {
+      "loading": "Loading",
       "enter": "Enter my world",
       "building": "Welcome to my world. Building the world…",
       "buildingWinter": "Merry Christmas, and welcome to my world. Building the world…",

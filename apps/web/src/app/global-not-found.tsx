@@ -13,6 +13,7 @@ export default function GlobalNotFound() {
         <main className="fixed inset-0">
           <World
             label={en.World.canvasLabel}
+            loading={en.World.opening.loading}
             opening={en.World.opening}
             frame={{
               language: Language.English,

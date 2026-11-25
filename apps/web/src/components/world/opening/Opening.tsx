@@ -35,6 +35,7 @@ import {
   Vector3,
 } from "three";
 import { type Font, FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
+import { SETTLE_FRAMES } from "../constants/ui/Loading.constants";
 import { HOWL } from "../constants/palette.constants";
 import {
   BELL,
@@ -1249,10 +1250,12 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
 function Welcome({
   intro,
   words,
+  onShown,
   onDone,
 }: {
   intro: RefObject<Intro>;
   words: OpeningWords;
+  onShown: () => void;
   onDone: () => void;
 }) {
   const font = useLoader(FontLoader, FONT) as Font;
@@ -1286,11 +1289,13 @@ function Welcome({
   }, [words]);
 
   const page = () => ({ go: go.current, say: say.current, goAt: goAt.current });
+  const drawn = useRef(0);
   const finish = () => {
     gl.domElement.focus({ preventScroll: true });
     onDone();
   };
   useFrame(() => {
+    if (drawn.current <= SETTLE_FRAMES && ++drawn.current > SETTLE_FRAMES) onShown();
     if (
       welcome.step(
         camera,
@@ -1337,10 +1342,12 @@ function Welcome({
 export function Opening({
   intro,
   words,
+  onShown,
   onDone,
 }: {
   intro: RefObject<Intro>;
   words: OpeningWords;
+  onShown: () => void;
   onDone: () => void;
 }) {
   const scene = useThree((state) => state.scene);
@@ -1372,7 +1379,7 @@ export function Opening({
         <meshBasicMaterial color={PAPER} />
       </mesh>
       <Suspense fallback={null}>
-        <Welcome intro={intro} words={words} onDone={onDone} />
+        <Welcome intro={intro} words={words} onShown={onShown} onDone={onDone} />
       </Suspense>
     </>
   );

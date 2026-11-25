@@ -50,3 +50,9 @@ export const DECK = {
 
 // going back from more than this far into a song (s) starts the song again instead
 export const BACK = 3;
+
+// Browsers only let a page start sound from a click, tap or key press. When starting a song is
+// refused (the error a refused play() gives), the player shows it isn't playing and starts the song
+// at the visitor's next press anywhere on the page (these events), unless they chose to stop it
+export const BLOCKED = "NotAllowedError";
+export const HAND_EVENTS = ["pointerdown", "pointerup", "keydown"] as const;
