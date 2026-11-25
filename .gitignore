@@ -26,4 +26,4 @@ npm-debug.log*
 .vercel
 
 # test songs (commercial recordings, not for the public repo)
-apps/web/public/music/*.mp3
+# apps/web/public/music/*.mp3
