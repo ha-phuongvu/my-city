@@ -56,3 +56,9 @@ export const BACK = 3;
 // at the visitor's next press anywhere on the page (these events), unless they chose to stop it
 export const BLOCKED = "NotAllowedError";
 export const HAND_EVENTS = ["pointerdown", "pointerup", "keydown"] as const;
+
+// the song's timeline under its name: how many steps its bar has from the start to the end, and the
+// words' placeholders for the time it's at and the song's length
+export const SEEK_STEPS = 1000;
+export const AT_MARK = "{at}";
+export const LENGTH_MARK = "{length}";

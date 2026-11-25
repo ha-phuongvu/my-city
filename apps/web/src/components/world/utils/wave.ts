@@ -36,6 +36,10 @@ export const WAVE_GLSL = `
   uniform vec3 waveGlow;
   uniform float waveLit;
   varying vec2 vWaveGround;
+  vec2 waveSeen(vec3 p) {
+    vec3 d = p - cameraPosition;
+    return p.xz + d.xz * (max(0.0, p.y - waveG) / max(0.001, -d.y));
+  }
   float waveRise(vec2 g) {
     float wt = clamp((waveR - length(g - waveC)) / waveW, 0.0, 1.0) - 1.0;
     return 1.0 + 2.7 * wt * wt * wt + 1.7 * wt * wt;
@@ -53,8 +57,9 @@ export const WAVE_GLSL = `
 const FLATTEN = `
   {
     vec3 waveWorld = transpose(mat3(viewMatrix)) * (mvPosition.xyz - viewMatrix[3].xyz);
-    vWaveGround = waveWorld.xz;
-    waveWorld.y = waveG + (waveWorld.y - waveG) * waveRise(waveWorld.xz);
+    vec2 waveAt = waveSeen(waveWorld);
+    vWaveGround = waveAt;
+    waveWorld.y = waveG + (waveWorld.y - waveG) * waveRise(waveAt);
     mvPosition = viewMatrix * vec4(waveWorld, 1.0);
     gl_Position = projectionMatrix * mvPosition;
   }

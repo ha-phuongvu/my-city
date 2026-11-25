@@ -25,7 +25,9 @@
       "pause": "Pause",
       "previous": "Previous song",
       "next": "Next song",
-      "empty": "No songs yet"
+      "empty": "No songs yet",
+      "seek": "Song position",
+      "at": "{at} of {length}"
     }
   }
 }

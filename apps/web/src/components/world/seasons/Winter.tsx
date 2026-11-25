@@ -598,7 +598,7 @@ const GLOW_VERTEX = `
   varying float vChase;
   void main() {
     vec3 p = position;
-    float rise = waveRise(p.xz);
+    float rise = waveRise(waveSeen((modelMatrix * vec4(p, 1.0)).xyz));
     p.y = waveG + (p.y - waveG) * rise;
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;

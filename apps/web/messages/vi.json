@@ -25,7 +25,9 @@
       "pause": "Tạm dừng",
       "previous": "Bài trước",
       "next": "Bài sau",
-      "empty": "Chưa có bài hát"
+      "empty": "Chưa có bài hát",
+      "seek": "Vị trí trong bài",
+      "at": "{at} trên {length}"
     }
   }
 }

@@ -5,9 +5,12 @@ import {
   BACK,
   BLOCKED,
   DECK,
+  AT_MARK,
   HAND_EVENTS,
+  LENGTH_MARK,
   PLAYLIST,
   PlayState,
+  SEEK_STEPS,
 } from "../constants/ui/RecordPlayer.constants";
 import "./RecordPlayer.css";
 import { useStill } from "../utils/pointing";
@@ -20,6 +23,13 @@ export type PlayerWords = {
   previous: string;
   next: string;
   empty: string;
+  seek: string;
+  at: string;
+};
+
+const clock = (t: number) => {
+  const s = Math.max(0, Math.floor(t || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
 const FIRST = PLAYLIST[0]?.src;
@@ -43,6 +53,30 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
   });
   const playing = useRef(false);
   const box = useRef<HTMLDivElement>(null);
+  const seek = useRef<HTMLInputElement>(null);
+  const atText = useRef<HTMLSpanElement>(null);
+  const lengthText = useRef<HTMLSpanElement>(null);
+  const dragging = useRef(false);
+
+  const showTime = useCallback(
+    (at?: number) => {
+      const a = audio.current;
+      const length = a && Number.isFinite(a.duration) ? a.duration : 0;
+      const pos = at ?? a?.currentTime ?? 0;
+      const k = length ? Math.min(1, pos / length) : 0;
+      if (atText.current) atText.current.textContent = clock(pos);
+      if (lengthText.current) lengthText.current.textContent = clock(length);
+      const bar = seek.current;
+      if (!bar) return;
+      if (at !== undefined || !dragging.current) bar.value = String(Math.round(k * SEEK_STEPS));
+      bar.style.setProperty("--p", `${(k * 100).toFixed(2)}%`);
+      bar.setAttribute(
+        "aria-valuetext",
+        words.at.replace(AT_MARK, clock(pos)).replace(LENGTH_MARK, clock(length)),
+      );
+    },
+    [words.at],
+  );
   const [needsHand, setNeedsHand] = useState(false);
   const current = PLAYLIST[song];
 
@@ -82,13 +116,14 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
           ? Math.min(want, d.vel + (DECK.spin / DECK.spinUp) * dt)
           : Math.max(want, d.vel - (DECK.spin / DECK.spinDown) * dt);
       d.angle = (d.angle + d.vel * dt) % 360;
+      showTime();
       disc.current?.setAttribute("transform", `rotate(${d.angle.toFixed(2)} 110 120)`);
       arm.current?.setAttribute("transform", `rotate(${d.armAt.toFixed(2)} 218 22)`);
       if (on || d.vel || Math.abs(d.armAt - target) > 0.05) d.raf = requestAnimationFrame(step);
       else d.raf = 0;
     };
     d.raf = requestAnimationFrame(step);
-  }, [still, sound]);
+  }, [still, sound, showTime]);
 
   const play = useCallback(
     (byHand = false) => {
@@ -166,6 +201,31 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
     if (start && !deck.current.chose) play();
   }, [start, play]);
 
+  useEffect(() => {
+    const bar = seek.current;
+    if (!bar) return;
+    const going = () => {
+      dragging.current = true;
+      const a = audio.current;
+      const length = a && Number.isFinite(a.duration) ? a.duration : 0;
+      showTime((length * Number(bar.value)) / SEEK_STEPS);
+    };
+    const letGo = () => {
+      dragging.current = false;
+      const a = audio.current;
+      if (a && Number.isFinite(a.duration) && a.duration)
+        a.currentTime = (a.duration * Number(bar.value)) / SEEK_STEPS;
+      showTime();
+      tick();
+    };
+    bar.addEventListener("input", going);
+    bar.addEventListener("change", letGo);
+    return () => {
+      bar.removeEventListener("input", going);
+      bar.removeEventListener("change", letGo);
+    };
+  }, [showTime, tick]);
+
   return (
     <div
       ref={box}
@@ -183,6 +243,8 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
           src={FIRST}
           preload="auto"
           onEnded={() => load((song + 1) % PLAYLIST.length, true, false)}
+          onLoadedMetadata={() => showTime()}
+          onTimeUpdate={() => showTime()}
         />
       )}
       <svg viewBox="0 0 240 236" aria-hidden="true">
@@ -266,6 +328,21 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
           words.empty
         )}
       </p>
+      <div className="rp-time">
+        <span ref={atText}>0:00</span>
+        <input
+          ref={seek}
+          type="range"
+          className="rp-seek"
+          min={0}
+          max={SEEK_STEPS}
+          step={1}
+          defaultValue={0}
+          aria-label={words.seek}
+          disabled={!current}
+        />
+        <span ref={lengthText}>0:00</span>
+      </div>
       <div className="rp-buttons">
         <button
           type="button"

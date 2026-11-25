@@ -33,6 +33,8 @@ export default async function WorldPage() {
             previous: p("previous"),
             next: p("next"),
             empty: p("empty"),
+            seek: p("seek"),
+            at: p.raw("at"),
           },
         }}
       />
