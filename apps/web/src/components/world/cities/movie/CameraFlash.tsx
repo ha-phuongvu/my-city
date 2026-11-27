@@ -34,8 +34,7 @@ import {
   RAY,
   STAR_KEYS,
 } from "../../constants/cities/movie/CameraFlash.constants";
-
-const easeOut = (t: number) => 1 - (1 - t) ** 3;
+import { easeOutCubic } from "../../utils/curves";
 
 function keyed(
   keys: readonly (readonly number[])[],
@@ -47,7 +46,7 @@ function keyed(
   while (i < keys.length - 2 && k > keys[i + 1][0]) i++;
   const [a, b] = [keys[i], keys[i + 1]];
   const t = Math.min(1, Math.max(0, (k - a[0]) / (b[0] - a[0])));
-  return a[index] + (b[index] - a[index]) * (eased ? easeOut(t) : t);
+  return a[index] + (b[index] - a[index]) * (eased ? easeOutCubic(t) : t);
 }
 
 function painted(

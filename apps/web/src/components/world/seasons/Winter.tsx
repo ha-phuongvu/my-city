@@ -51,12 +51,13 @@ import {
 } from "../constants/seasons/Winter.constants";
 import { G as BRICK_GROUND } from "../constants/brickRing.constants";
 import { brickRing, stretchesFrom } from "../utils/brickRing";
-import { rng } from "../utils/foliageMesh";
+import { rng } from "../utils/random";
 import { useStill } from "../utils/pointing";
 import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import { isWinter } from "../utils/season";
 import { useParts } from "../utils/useParts";
 import { ownWave, WAVE_GLSL, WAVE_UNIFORMS } from "../utils/wave";
+import { smoothstep } from "../utils/curves";
 
 const G = GROUND_Y;
 const at = (x: number, y: number, z: number) => new Matrix4().makeTranslation(x, y, z);
@@ -131,10 +132,6 @@ const mix = (a: string, b: string, t: number) =>
 const warm = () => LIGHTS.colors[Math.floor(Math.random() * LIGHTS.colors.length)];
 const twinkle = () =>
   (Math.PI * 2) / (LIGHTS.twinkle[0] + Math.random() * (LIGHTS.twinkle[1] - LIGHTS.twinkle[0]));
-const smooth = (a: number, b: number, x: number) => {
-  const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
-  return k * k * (3 - 2 * k);
-};
 
 type Tier = { y: number; h: number; r: number; n: number; turn: number };
 
@@ -189,7 +186,7 @@ function christmasTree(pieces: Pieces, glows: Glows) {
     return Math.abs(2 * f - 1);
   };
   const onTier = (t: Tier, u: number, a: number, tip = tipAt(t, a)): [number, number] => {
-    const s = smooth(TIPS.from, 1, u);
+    const s = smoothstep(TIPS.from, 1, u);
     return [
       t.r * u * (1 - TIPS.notch * s * (1 - tip)),
       t.y + t.h * (1 - u ** T.bow) - t.h * TIPS.droop * s * s * (0.35 + 0.65 * tip),
@@ -228,7 +225,7 @@ function christmasTree(pieces: Pieces, glows: Glows) {
       if (n.y < -0.05) return T.green[3];
       const [lx, lz] = [p.x - tx, p.z - tz];
       const tip = tipAt(t, Math.atan2(lz, lx));
-      const s = smooth(TIPS.from - 0.1, 1, Math.hypot(lx, lz) / t.r);
+      const s = smoothstep(TIPS.from - 0.1, 1, Math.hypot(lx, lz) / t.r);
       return mix(T.green[1], tip > 0.5 ? T.green[0] : T.green[2], s * Math.abs(tip - 0.5) * 2);
     });
 
@@ -241,7 +238,7 @@ function christmasTree(pieces: Pieces, glows: Glows) {
         const a = t.turn + (c / (cols - 1)) * Math.PI * 2;
         const patch = cap
           ? 1
-          : smooth(-0.55, -0.05, Math.sin(a * 2 + k * 2.1) + 0.6 * Math.sin(a * 3 + k * 1.3));
+          : smoothstep(-0.55, -0.05, Math.sin(a * 2 + k * 2.1) + 0.6 * Math.sin(a * 3 + k * 1.3));
         const wide =
           (cap ? 0.5 : 0.24 + 0.06 * Math.sin(a * 5 + k)) * patch * (0.75 + 0.3 * tipAt(t, a));
         const fr = Math.min(1, r / (SR - 2));

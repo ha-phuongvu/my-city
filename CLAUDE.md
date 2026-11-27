@@ -39,6 +39,7 @@ Don't write comments (`//`, `/* */`, JSDoc, comments inside shader strings, CSS 
 
 - Module-level constant values live in a matching `<File>.constants.ts` under `apps/web/src/components/world/constants/`, in the same subfolder as the component (`environment/Grass.tsx` → `constants/environment/Grass.constants.ts`). Constants shared across folders or used by `utils/` stay at the `constants/` root.
 - Helper `.ts` files (no component, not only data) go flat in `world/utils/`.
+- Reuse what is already written. Before writing a function, search `utils/` and the code around it for one that does the same job, and call it. Never write a second copy of a function that already exists. If the existing one is close but not quite right, extend it (a parameter, an option) instead of copying it, and if it lives in a component but is needed elsewhere, move it to `utils/` and import it from both places.
 - Clean up dead code after each task.
 
 ### World folders (`apps/web/src/components/world/`)

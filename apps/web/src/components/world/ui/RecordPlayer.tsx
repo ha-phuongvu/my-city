@@ -8,12 +8,14 @@ import {
   AT_MARK,
   HAND_EVENTS,
   LENGTH_MARK,
-  PLAYLIST,
+  PLAYLISTS,
   PlayState,
   SEEK_STEPS,
 } from "../constants/ui/RecordPlayer.constants";
 import "./RecordPlayer.css";
+import { useOpening } from "../utils/opening";
 import { useStill } from "../utils/pointing";
+import { seasonNow } from "../utils/season";
 
 export type PlayerWords = {
   label: string;
@@ -32,9 +34,12 @@ const clock = (t: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+const PLAYLIST = PLAYLISTS[seasonNow()];
 const FIRST = PLAYLIST[0]?.src;
 
-export function RecordPlayer({ words, start }: { words: PlayerWords; start: boolean }) {
+export default function RecordPlayer({ words }: { words: PlayerWords }) {
+  const opening = useOpening();
+  const start = !opening;
   const still = useStill();
   const [song, setSong] = useState(0);
   const [state, setState] = useState(PlayState.Stopped);
@@ -229,7 +234,7 @@ export function RecordPlayer({ words, start }: { words: PlayerWords; start: bool
   return (
     <div
       ref={box}
-      className="rp-player"
+      className={opening ? "rp-player rp-away" : "rp-player"}
       role="group"
       aria-label={state === PlayState.Playing ? words.playing : words.label}
 

@@ -19,7 +19,7 @@ import {
   PILES,
   SHAPE_SEED,
 } from "../constants/environment/SnowPiles.constants";
-import { rng } from "../utils/foliageMesh";
+import { rng } from "../utils/random";
 import { outskirtsPiles, type Pile } from "../utils/outskirts";
 import { useStill } from "../utils/pointing";
 import { useRoomLight, withRoomLight } from "../utils/roomLight";

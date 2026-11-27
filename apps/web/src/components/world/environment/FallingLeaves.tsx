@@ -12,8 +12,8 @@ import {
   SphereGeometry,
   Vector3,
 } from "three";
-import { rng } from "../utils/foliageMesh";
-import { ease } from "../utils/cycle";
+import { rng } from "../utils/random";
+import { ease } from "../utils/curves";
 import {
   CLUMPS,
   FACING,

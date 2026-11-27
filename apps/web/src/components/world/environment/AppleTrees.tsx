@@ -23,12 +23,11 @@ import {
   REGROW,
   RIGHT,
 } from "../constants/environment/AppleTrees.constants";
+import { easeOutQuad } from "../utils/curves";
 
 const SPOT = new Vector3();
 
 const easeIn = (t: number) => t * t;
-const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
-
 type Hanging = {
   tree: number;
   rest: Vector3;
@@ -46,20 +45,20 @@ function dropAt(apple: Hanging, age: number): [number, number, number, number] {
 
   if (k < 0.22) return [0, fall * easeIn(k / 0.22), 1, 1];
   if (k < 0.29) {
-    const f = easeOut((k - 0.22) / 0.07);
+    const f = easeOutQuad((k - 0.22) / 0.07);
     return [roll * 0.45 * f, fall - bounce * f, 1, 1];
   }
   if (k < 0.36) {
     const f = easeIn((k - 0.29) / 0.07);
     return [roll * (0.45 + 0.35 * f), fall - bounce * (1 - f), 1, 1];
   }
-  if (k < 0.46) return [roll * (0.8 + 0.2 * easeOut((k - 0.36) / 0.1)), fall, 1, 1];
+  if (k < 0.46) return [roll * (0.8 + 0.2 * easeOutQuad((k - 0.36) / 0.1)), fall, 1, 1];
   if (k < 0.84) return [roll, fall, 1, 1];
   if (k < 1) return [roll, fall, (1 - k) / 0.16, 1];
 
   const grow = (age - DROP - GONE) / REGROW;
   if (grow < 0) return [0, 0, 0, 0.1];
-  return grow < 1 ? [0, 0, easeOut(grow), 0.1 + 0.9 * easeOut(grow)] : [0, 0, 1, 1];
+  return grow < 1 ? [0, 0, easeOutQuad(grow), 0.1 + 0.9 * easeOutQuad(grow)] : [0, 0, 1, 1];
 }
 
 export function AppleTrees({

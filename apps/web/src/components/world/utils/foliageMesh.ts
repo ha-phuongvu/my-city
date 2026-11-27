@@ -21,60 +21,27 @@ import {
 import type { RGB, V3 } from "../constants/foliageMesh.constants";
 import { SWAY } from "../constants/wind.constants";
 import { isWinter } from "./season";
+import { hexRgb, mixRgb, rgbHex, tint } from "./color";
+import { smoothstep } from "./curves";
+import { rng } from "./random";
+import { add, cross, dot, mul, unit } from "./vec3";
 
-const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const mul = (a: V3, k: number): V3 => [a[0] * k, a[1] * k, a[2] * k];
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a: V3, b: V3): V3 => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-];
-const unit = (a: V3): V3 => {
-  const l = Math.hypot(a[0], a[1], a[2]) || 1;
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
-
-const hexRgb = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;
-const rgbHex = (c: RGB) =>
-  "#" +
-  c
-    .map((v) =>
-      Math.max(0, Math.min(255, Math.round(v)))
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("");
-const mixc = (a: RGB, b: RGB, t: number): RGB => a.map((v, i) => v + (b[i] - v) * t) as RGB;
-const tint = (a: string, b: string, k: number) => rgbHex(mixc(hexRgb(a), hexRgb(b), k));
-const dk = (c: string, k = 0.3) => rgbHex(mixc(hexRgb(c), [40, 30, 34], k));
+const dk = (c: string, k = 0.3) => rgbHex(mixRgb(hexRgb(c), [40, 30, 34], k));
 
 const SNOW_LIGHT = hexRgb(SNOW.light);
 const SNOW_SHADE = hexRgb(SNOW.shade);
 
 function snowOn(c: RGB, n: V3): RGB {
   const up = n[2];
-  const f = Math.min(1, Math.max(0, (up - SNOW.from) / (SNOW.to - SNOW.from)));
-  const snow = mixc(SNOW_SHADE, SNOW_LIGHT, Math.min(1, Math.max(0, up)));
-  return mixc(c, snow, f * f * (3 - 2 * f) * SNOW.most);
+  const snow = mixRgb(SNOW_SHADE, SNOW_LIGHT, Math.min(1, Math.max(0, up)));
+  return mixRgb(c, snow, smoothstep(SNOW.from, SNOW.to, up) * SNOW.most);
 }
 
 function shade(hex: string, n: V3): RGB {
   const c = hexRgb(hex);
   const t = n[2] * n[2] - n[0] * n[0];
-  const lit = t >= 0 ? mixc(c, SUN, 0.2 * t) : mixc(c, SHADE, 0.34 * -t);
-  return mixc(lit, SUN, 0.07 * n[1] * n[1]);
-}
-
-export function rng(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  const lit = t >= 0 ? mixRgb(c, SUN, 0.2 * t) : mixRgb(c, SHADE, 0.34 * -t);
+  return mixRgb(lit, SUN, 0.07 * n[1] * n[1]);
 }
 
 class Mesh {
@@ -89,7 +56,7 @@ class Mesh {
   private color = new Color();
 
   face(pts: V3[], n: V3, hex: string) {
-    let rgb = mixc(shade(hex, n), FADE, this.fade);
+    let rgb = mixRgb(shade(hex, n), FADE, this.fade);
     if (this.snowy) rgb = snowOn(rgb, n);
     this.color.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, SRGBColorSpace);
     const mid = mul(pts.reduce(add, [0, 0, 0] as V3), 1 / pts.length);
@@ -104,7 +71,7 @@ class Mesh {
 
   smoothFace(pts: V3[], ns: V3[], hexes: string[]) {
     const tone = (n: V3, hex: string) => {
-      let rgb = mixc(shade(hex, n), FADE, this.fade);
+      let rgb = mixRgb(shade(hex, n), FADE, this.fade);
       if (this.snowy) rgb = snowOn(rgb, n);
       return new Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, SRGBColorSpace);
     };

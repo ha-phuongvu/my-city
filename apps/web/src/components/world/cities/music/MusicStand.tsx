@@ -41,6 +41,7 @@ import {
   W,
   WIDTH,
 } from "../../constants/cities/music/MusicStand.constants";
+import { bezier, easeOutCubic } from "../../utils/curves";
 
 const bow = (X: number) => 0.1 * Math.sin((Math.PI * Math.abs(X)) / (PAGE.width * 1.1)) + 0.01;
 
@@ -55,24 +56,6 @@ function onPage(s: number, t: number): [number, number, number] {
   ];
 }
 
-const easeOut = (t: number) => 1 - (1 - t) ** 3;
-
-function bezier(x1: number, y1: number, x2: number, y2: number): (x: number) => number {
-  const along = (a: number, b: number, s: number) =>
-    3 * a * s * (1 - s) ** 2 + 3 * b * s * s * (1 - s) + s ** 3;
-  return (x) => {
-    if (x <= 0) return 0;
-    if (x >= 1) return 1;
-    let lo = 0;
-    let hi = 1;
-    for (let i = 0; i < 24; i++) {
-      const s = (lo + hi) / 2;
-      if (along(x1, x2, s) < x) lo = s;
-      else hi = s;
-    }
-    return along(y1, y2, (lo + hi) / 2);
-  };
-}
 const EASE_IN_OUT = bezier(0.42, 0, 0.58, 1);
 const EASE_OUT = bezier(0, 0, 0.58, 1);
 const POP = bezier(0.3, 1.6, 0.6, 1);
@@ -223,7 +206,7 @@ function paintFlow(canvas: Canvas, t: number) {
 function hop(i: number, t: number): number {
   const k = (t - i * HOP.gap) / HOP.time;
   if (k <= 0 || k >= 1) return 0;
-  return k < 0.4 ? easeOut(k / 0.4) : 1 - easeOut((k - 0.4) / 0.6);
+  return k < 0.4 ? easeOutCubic(k / 0.4) : 1 - easeOutCubic((k - 0.4) / 0.6);
 }
 
 function paintPages(face: Canvas, name: string, sub: string, t: number | undefined) {

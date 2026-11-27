@@ -59,10 +59,11 @@ import { WorldProps } from "../cities/WorldProps";
 import { isWinter } from "../utils/season";
 import { Winter } from "../seasons/Winter";
 import { Calendar, type CalendarWords } from "../ui/Calendar";
-import { type PlayerWords, RecordPlayer } from "../ui/RecordPlayer";
-import { useUiSize } from "../utils/uiSize";
+import { setOpening } from "../utils/opening";
+import { ease } from "../utils/curves";
+import { hexRgb, mixRgb } from "../utils/color";
 
-export type FrameWords = { language: Language; calendar: CalendarWords; player: PlayerWords };
+export type FrameWords = { language: Language; calendar: CalendarWords };
 
 type Props = {
   label: string;
@@ -78,8 +79,7 @@ const clamp = (value: number, [low, high]: readonly [number, number]) =>
 const fitting = (frame: { width: number; height: number }, aspect: number) =>
   FIT_ROOM * Math.max(frame.height / 2 / HALF_FOV, frame.width / 2 / (HALF_FOV * aspect));
 
-const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
-const mix = (a: number[], b: number[], k: number) => a.map((v, i) => v + (b[i] - v) * k);
+const rgb = (hex: string) => hexRgb(hex).map((v) => v / 255);
 
 function Sky() {
   const dome = useRef<Mesh>(null);
@@ -93,9 +93,9 @@ function Sky() {
       const up = position.getY(i) / DOME;
       const [r, g, b] =
         up > 0.32
-          ? mix(mid, top, Math.min(1, (up - 0.32) / 0.6))
+          ? mixRgb(mid, top, Math.min(1, (up - 0.32) / 0.6))
           : up > 0.02
-            ? mix(low, mid, (up - 0.02) / 0.3)
+            ? mixRgb(low, mid, (up - 0.02) / 0.3)
             : low;
       color.setRGB(r, g, b, SRGBColorSpace);
       colors.push(color.r, color.g, color.b);
@@ -340,9 +340,9 @@ function WalkControls({ intro }: { intro: RefObject<Intro> }) {
       }
       if (glide) {
         const t = Math.min(1, (performance.now() - glide.t0) / glide.ms);
-        const ease = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
-        o.tx = glide.from[0] + (glide.to[0] - glide.from[0]) * ease;
-        o.tz = glide.from[1] + (glide.to[1] - glide.from[1]) * ease;
+        const k = ease(t);
+        o.tx = glide.from[0] + (glide.to[0] - glide.from[0]) * k;
+        o.tz = glide.from[1] + (glide.to[1] - glide.from[1]) * k;
         if (t >= 1) glide = null;
         place();
       }
@@ -393,7 +393,10 @@ function Landmarks() {
 export default function WorldCanvas({ label, opening, frame, onProgress, onShown }: Props) {
   const intro = useRef<Intro>({ on: true, arrived: false });
   const [welcome, setWelcome] = useState(true);
-  useUiSize();
+  useEffect(() => {
+    setOpening(welcome);
+    return () => setOpening(false);
+  }, [welcome]);
   useLayoutEffect(() => {
     const before = DefaultLoadingManager.onProgress;
     DefaultLoadingManager.onProgress = (url, loaded, total) => {
@@ -459,7 +462,6 @@ export default function WorldCanvas({ label, opening, frame, onProgress, onShown
       </Canvas>
 
       {!welcome && <Calendar words={frame.calendar} language={frame.language} />}
-      {!welcome && <RecordPlayer words={frame.player} start />}
     </>
   );
 }

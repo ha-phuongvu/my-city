@@ -10,11 +10,12 @@ import {
   type Object3D,
   Vector3,
 } from "three";
-import { ease, type MotionProps, useCycle } from "../../utils/cycle";
+import { type MotionProps, useCycle } from "../../utils/cycle";
 import { moveInPrototype, turnAbout } from "../../utils/prototype";
 import { useParts } from "../../utils/useParts";
 import { useRoomLight, withRoomLight } from "../../utils/roomLight";
 import { BLOOM, HEADS } from "../../constants/cities/story/Wildflowers.constants";
+import { ease } from "../../utils/curves";
 
 function bloomAt(t: number): { size: number; twist: number; solid: number } {
   let i = 0;

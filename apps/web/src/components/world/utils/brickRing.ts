@@ -1,22 +1,11 @@
 import { BRICKS, COURSE, FACES, G, MORTAR, THICK } from "../constants/brickRing.constants";
+import { hexRgb } from "./color";
+import { rng } from "./random";
+import { add, mul } from "./vec3";
 
 type P3 = [number, number, number];
 
 export type WallBox = { corners: P3[]; color: string };
-
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const add = (a: P3, b: P3): P3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const mul = (a: P3, k: number): P3 => [a[0] * k, a[1] * k, a[2] * k];
 
 function para(o: P3, a: P3, b: P3, c: P3, color: string): WallBox {
   const p = (i: number, j: number, k: number) => add(add(add(o, mul(a, i)), mul(b, j)), mul(c, k));
@@ -111,7 +100,7 @@ export function brickRing(
 }
 
 function linear(hex: string): P3 {
-  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const c = hexRgb(hex).map((v) => v / 255);
   return c.map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)) as P3;
 }
 

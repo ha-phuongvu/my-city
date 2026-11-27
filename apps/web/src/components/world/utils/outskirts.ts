@@ -20,17 +20,8 @@ import {
   type TreePlacement,
 } from "../constants/treeLayout.constants";
 import { isWinter } from "./season";
-
-function random(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { smoothstep } from "./curves";
+import { rng } from "./random";
 
 function bits(packed: string) {
   const bytes = Uint8Array.from(atob(packed), (c) => c.charCodeAt(0));
@@ -52,12 +43,11 @@ function noise(seed: number, size: number) {
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   };
-  const smooth = (t: number) => t * t * (3 - 2 * t);
   const octave = (x: number, z: number) => {
     const i = Math.floor(x);
     const j = Math.floor(z);
-    const u = smooth(x - i);
-    const v = smooth(z - j);
+    const u = smoothstep(0, 1, x - i);
+    const v = smoothstep(0, 1, z - j);
     const a = corner(i, j) + (corner(i + 1, j) - corner(i, j)) * u;
     const b = corner(i, j + 1) + (corner(i + 1, j + 1) - corner(i, j + 1)) * u;
     return a + (b - a) * v;
@@ -70,7 +60,7 @@ const between = (r: () => number, [a, b]: readonly [number, number]) => a + (b -
 const pick = <T>(r: () => number, list: readonly T[]) => list[Math.floor(r() * list.length)];
 
 export function outskirtsGrass(blades: Int16Array, flowers: Int16Array) {
-  const r = random(SEED);
+  const r = rng(SEED);
   const B: number[] = [];
   const F: number[] = [];
   const nB = blades.length / 6;
@@ -121,7 +111,7 @@ function appleTreeAt(template: AppleTreePlacement, x: number, z: number): AppleT
 }
 
 function growWoods() {
-  const r = random(SEED + 1);
+  const r = rng(SEED + 1);
   const grove = noise(SEED + 2, WOODS.grove);
   const pines = noise(SEED + 3, WOODS.grove * 1.3);
   const round: TreePlacement[] = [];
@@ -179,7 +169,7 @@ function outskirtsCopies<T>(
   spotsOf: (set: T[]) => XZ[],
   shift: (item: T, from: XZ, to: XZ) => T,
 ): T[] {
-  const r = random(SEED + 4);
+  const r = rng(SEED + 4);
   const trees = [
     ...OUTSKIRTS_TREES.round,
     ...OUTSKIRTS_TREES.apple,
@@ -275,7 +265,7 @@ function smoothLoop(pts: [number, number][], steps: number): [number, number][] 
 export type MeadowPatch = { outline: [number, number][]; color: string; lift: number };
 
 function paintMeadow(): MeadowPatch[] {
-  const r = random(SEED + 5);
+  const r = rng(SEED + 5);
   const { big, small, edge, lift } = MEADOW_PATCHES;
   const out: MeadowPatch[] = [];
   const lay = (

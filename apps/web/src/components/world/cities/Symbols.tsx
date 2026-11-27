@@ -18,6 +18,7 @@ import {
   SHADOW,
   SHADOW_Y,
 } from "../constants/cities/Symbols.constants";
+import { softDot } from "../utils/softDot";
 
 const MOTION: Record<string, ComponentType<MotionProps>> = {
   book: Book,
@@ -28,26 +29,11 @@ const MOTION: Record<string, ComponentType<MotionProps>> = {
 };
 
 function blot(): CanvasTexture {
-  const size = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (context) {
-    const gradient = context.createRadialGradient(
-      size / 2,
-      size / 2,
-      0,
-      size / 2,
-      size / 2,
-      size / 2,
-    );
-    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-    gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.7)");
-    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, size, size);
-  }
-  return new CanvasTexture(canvas);
+  return softDot(128, [
+    [0, "rgba(255, 255, 255, 1)"],
+    [0.5, "rgba(255, 255, 255, 0.7)"],
+    [1, "rgba(255, 255, 255, 0)"],
+  ]);
 }
 
 function FloatingSymbol({

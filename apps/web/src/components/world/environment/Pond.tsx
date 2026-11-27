@@ -17,6 +17,7 @@ import {
 import { useStill } from "../utils/pointing";
 import { DASHES, LIFT, PATTERN, RING_TIME } from "../constants/environment/Pond.constants";
 import { POND_LANES, POND_RINGS, POND_WATER } from "../constants/environment/pondLayout.constants";
+import { bezier } from "../utils/curves";
 
 const VERTEX = `
   #include <common>
@@ -89,18 +90,7 @@ const FRAGMENT = `
   }
 `;
 
-function easeOut(x: number): number {
-  const at = (t: number, p1: number, p2: number) =>
-    3 * (1 - t) * (1 - t) * t * p1 + 3 * (1 - t) * t * t * p2 + t * t * t;
-  let lo = 0;
-  let hi = 1;
-  for (let i = 0; i < 24; i++) {
-    const mid = (lo + hi) / 2;
-    if (at(mid, 0, 0.58) < x) lo = mid;
-    else hi = mid;
-  }
-  return at((lo + hi) / 2, 0, 1);
-}
+const easeOut = bezier(0, 0, 0.58, 1);
 
 function ringAt(phase: number): [scale: number, opacity: number] {
   const scale = phase < 0.45 ? 0.2 + 1.4 * easeOut(phase / 0.45) : 1.6;

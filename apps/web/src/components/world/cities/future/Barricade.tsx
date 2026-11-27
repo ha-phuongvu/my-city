@@ -34,6 +34,7 @@ import {
   WIDTH,
   YELLOW,
 } from "../../constants/cities/future/Barricade.constants";
+import { softDot } from "../../utils/softDot";
 
 function paintBoard(name: string, sub: string) {
   const face = faceCanvas(WIDTH, HEIGHT, 360);
@@ -102,17 +103,10 @@ function lampShape(): BufferGeometry {
 }
 
 function glow(): CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 64;
-  const context = canvas.getContext("2d");
-  if (context) {
-    const fade = context.createRadialGradient(32, 32, 0, 32, 32, 32);
-    fade.addColorStop(0, GLOW);
-    fade.addColorStop(1, "rgba(255, 170, 30, 0)");
-    context.fillStyle = fade;
-    context.fillRect(0, 0, 64, 64);
-  }
-  return new CanvasTexture(canvas);
+  return softDot(64, [
+    [0, GLOW],
+    [1, "rgba(255, 170, 30, 0)"],
+  ]);
 }
 
 type Props = MotionProps & {

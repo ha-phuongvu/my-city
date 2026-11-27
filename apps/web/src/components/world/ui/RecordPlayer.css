@@ -16,6 +16,9 @@
   cursor: default;
   zoom: var(--ui, 1);
 }
+.rp-player.rp-away {
+  display: none;
+}
 .rp-player svg {
   display: block;
   width: 100%;

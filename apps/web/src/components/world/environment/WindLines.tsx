@@ -14,13 +14,9 @@ import {
   UP,
   WIND,
 } from "../constants/environment/WindLines.constants";
+import { smoothstep } from "../utils/curves";
 
 type Line = { center: Vector3; born: number; length: number; wave: number };
-
-const smooth = (q: number) => {
-  const k = Math.max(0, Math.min(1, q));
-  return k * k * (3 - 2 * k);
-};
 
 export function WindLines() {
   const still = useStill();
@@ -104,7 +100,10 @@ export function WindLines() {
 
         const off = -0.5 * line.wave * Math.cos(3 * Math.PI * r);
         const slope = (0.5 * line.wave * 3 * Math.PI * Math.sin(3 * Math.PI * r)) / line.length;
-        const thick = THICK * smooth(1 - Math.abs(r * 2 - 1)) * smooth(1 - Math.abs(r - head));
+        const thick =
+          THICK *
+          smoothstep(0, 1, 1 - Math.abs(r * 2 - 1)) *
+          smoothstep(0, 1, 1 - Math.abs(r - head));
         at.copy(line.center)
           .addScaledVector(WIND, along + DRIFT * p)
           .addScaledVector(UP, off);

@@ -8,6 +8,7 @@ import {
   POINTS,
   WOOD,
 } from "../constants/kendamaString.constants";
+import { smoothstep } from "./curves";
 
 function gap(p: Vector3): number {
   let best = Infinity;
@@ -22,8 +23,7 @@ function gap(p: Vector3): number {
 }
 
 function behind(ball: Vector3): number {
-  const k = Math.min(1, Math.max(0, -ball.y / 0.25));
-  return k * k * (3 - 2 * k);
+  return smoothstep(0, 0.25, -ball.y);
 }
 
 function knot(ball: Vector3): Vector3 {

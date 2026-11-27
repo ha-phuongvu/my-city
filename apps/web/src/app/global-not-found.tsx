@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { World } from "@/components/world/core/World";
+import { Music } from "@/components/world/ui/Music";
 import { Language } from "@/i18n/language";
 import en from "../../messages/en.json";
 import "./globals.css";
@@ -18,10 +19,10 @@ export default function GlobalNotFound() {
             frame={{
               language: Language.English,
               calendar: en.World.calendar,
-              player: en.World.player,
             }}
           />
         </main>
+        <Music words={en.World.player} />
       </body>
     </html>
   );

@@ -29,6 +29,7 @@ import {
   R,
   TUNE,
 } from "../../constants/cities/music/Piano.constants";
+import { easeOutQuad } from "../../utils/curves";
 
 function glyph(text: string): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -124,7 +125,7 @@ export function Piano(motion: MotionProps) {
       sprite.visible = since >= 0 && (left.current === undefined || set < left.current);
       if (!sprite.visible) return;
       const k = (since % NOTE_LIFE) / NOTE_LIFE;
-      const out = 1 - (1 - k) * (1 - k);
+      const out = easeOutQuad(k);
       const across = note.across + NOTE_DRIFT * out;
       sprite.position.set(
         NOTE_FROM[0] + R * across,

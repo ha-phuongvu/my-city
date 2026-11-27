@@ -37,6 +37,7 @@ import {
   STRANDS,
   STREAK,
 } from "../../constants/cities/plaza/Fountain.constants";
+import { easeOutQuad } from "../../utils/curves";
 
 const isStreak = (i: number) => (i * 37) % COLUMNS < 14;
 
@@ -181,8 +182,6 @@ function foamPaper(): CanvasTexture {
   return texture(paper);
 }
 
-const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
-
 type Props = Pick<MotionProps, "speed" | "at"> & ThreeElements["group"];
 
 export function Fountain({ speed = 1, at, ...props }: Props) {
@@ -303,24 +302,24 @@ export function Fountain({ speed = 1, at, ...props }: Props) {
       drop.visible = !still;
       const k = ((((time + spot.delay) / DROPS.time) % 1) + 1) % 1;
       const out = FALLS.r1 + 0.05 * k;
-      const across = spot.side * easeOut(k);
+      const across = spot.side * easeOutQuad(k);
       const a = spot.angle;
       drop.position.set(
         out * Math.cos(a) - across * Math.sin(a),
         out * Math.sin(a) + across * Math.cos(a),
         FALLS.z1 + 0.01 + DROPS.hop * 4 * k * (1 - k),
       );
-      (drop.material as MeshBasicMaterial).opacity = DROPS.opacity * (1 - easeOut(k));
+      (drop.material as MeshBasicMaterial).opacity = DROPS.opacity * (1 - easeOutQuad(k));
     });
     RIPPLES.forEach((ring, i) => {
       const mesh = rings.current[i];
       if (!mesh) return;
       mesh.visible = !still;
       const k = ((((time - ring.delay) / ring.time) % 1) + 1) % 1;
-      const reach = ring.reach * (ring.from + (1 - ring.from) * easeOut(k));
+      const reach = ring.reach * (ring.from + (1 - ring.from) * easeOutQuad(k));
       resize(mesh.geometry, reach - RIPPLE.width / 2, reach + RIPPLE.width / 2, ring.z);
       (mesh.material as MeshBasicMaterial).opacity =
-        RIPPLE.opacity * (k < 0.15 ? easeOut(k / 0.15) : 1 - easeOut((k - 0.15) / 0.85));
+        RIPPLE.opacity * (k < 0.15 ? easeOutQuad(k / 0.15) : 1 - easeOutQuad((k - 0.15) / 0.85));
     });
   });
 

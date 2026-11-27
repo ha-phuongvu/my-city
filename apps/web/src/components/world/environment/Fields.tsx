@@ -34,18 +34,9 @@ import { through } from "../utils/cycle";
 import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import { isWinter } from "../utils/season";
 import { SnowPiles } from "./SnowPiles";
+import { tint } from "../utils/color";
 
 type Stage = number;
-
-type Rgb = [number, number, number];
-const rgb = (hex: string): Rgb => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
-const toHex = (c: Rgb) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
-
-const tint = (a: string, b: string, k: number) => {
-  const p = rgb(a);
-  const q = rgb(b);
-  return toHex(p.map((v, i) => v + (q[i] - v) * k) as Rgb);
-};
 
 const started = new Map<FlowerPatch, number>();
 const pointed = new Set<FlowerPatch>();

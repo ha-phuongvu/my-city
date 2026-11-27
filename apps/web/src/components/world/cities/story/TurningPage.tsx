@@ -18,7 +18,7 @@ import {
   PRINT_FRONT,
   type PrintLayer,
 } from "../../constants/cities/story/bookPrintLayout.constants";
-import { ease, type MotionProps } from "../../utils/cycle";
+import type { MotionProps } from "../../utils/cycle";
 import { usePlayWhilePointed } from "../../utils/pointing";
 import { useRoomLight } from "../../utils/roomLight";
 import {
@@ -34,6 +34,7 @@ import {
   SPINE,
   TURN,
 } from "../../constants/cities/story/TurningPage.constants";
+import { ease } from "../../utils/curves";
 
 function angle(s: number, z: number, t: number): number {
   const lead = (s / PAGE.width) * (0.5 + (0.5 * z) / PAGE.height);

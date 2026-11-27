@@ -4,7 +4,6 @@ import { World } from "@/components/world/core/World";
 export default async function WorldPage() {
   const t = await getTranslations("World");
   const c = await getTranslations("World.calendar");
-  const p = await getTranslations("World.player");
   const language = await getLocale();
   return (
     <main className="fixed inset-0">
@@ -24,17 +23,6 @@ export default async function WorldPage() {
             previous: c("previous"),
             next: c("next"),
             today: c("today"),
-          },
-          player: {
-            label: p("label"),
-            playing: p("playing"),
-            play: p("play"),
-            pause: p("pause"),
-            previous: p("previous"),
-            next: p("next"),
-            empty: p("empty"),
-            seek: p("seek"),
-            at: p.raw("at"),
           },
         }}
       />

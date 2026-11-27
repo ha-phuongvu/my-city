@@ -57,12 +57,14 @@ import {
   REACH_MOST,
   Phase,
 } from "../constants/opening/Opening.constants";
-import { rng } from "../utils/foliageMesh";
+import { rng } from "../utils/random";
 import { useRoomLight, withRoomLight } from "../utils/roomLight";
 import { isWinter } from "../utils/season";
 import { ownWave, waveAll, waveDone, WAVE_UNIFORMS } from "../utils/wave";
 import { GROUND_Y, PAPER, WAVE } from "../constants/wave.constants";
 import { SUN_AT } from "../constants/core/WorldLights.constants";
+import { easeOutCubic } from "../utils/curves";
+import { softDot } from "../utils/softDot";
 
 export type Intro = { on: boolean; arrived: boolean };
 
@@ -89,7 +91,6 @@ type Piece = {
 type Move = { t0: number; t1: number; f: (x: number) => Vector3; turn: (x: number) => number };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-const easeOut = (x: number) => 1 - (1 - x) ** 3;
 const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
 const back = (x: number) => 1 + 2.7 * (x - 1) ** 3 + 1.7 * (x - 1) ** 2;
 
@@ -391,20 +392,11 @@ function build(font: Font, light: Texture, view: View) {
   welcome.userData.noWave = true;
 
   const blotTexture = keep(
-    (() => {
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = 128;
-      const x = canvas.getContext("2d");
-      if (x) {
-        const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-        g.addColorStop(0, "rgba(255,255,255,1)");
-        g.addColorStop(0.55, "rgba(255,255,255,0.55)");
-        g.addColorStop(1, "rgba(255,255,255,0)");
-        x.fillStyle = g;
-        x.fillRect(0, 0, 128, 128);
-      }
-      return new CanvasTexture(canvas);
-    })(),
+    softDot(128, [
+      [0, "rgba(255,255,255,1)"],
+      [0.55, "rgba(255,255,255,0.55)"],
+      [1, "rgba(255,255,255,0)"],
+    ]),
   );
   const blot = (w: number, d: number, opacity: number) => {
     const material = keep(
@@ -1028,7 +1020,7 @@ function makeWelcome(font: Font, light: Texture, view: View, still: boolean) {
     const P = READY.ring;
     for (const m of pulses) {
       const q = clamp01((now - m.userData.then) / P.ms);
-      const k = B.radius * (1.02 + P.grow * easeOut(q));
+      const k = B.radius * (1.02 + P.grow * easeOutCubic(q));
       m.scale.set(k, k, 1);
       (m.material as MeshBasicMaterial).opacity = q > 0 && q < 1 ? P.opacity * (1 - q) : 0;
     }

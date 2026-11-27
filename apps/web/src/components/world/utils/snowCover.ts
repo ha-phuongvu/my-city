@@ -1,27 +1,18 @@
 import { BufferAttribute, BufferGeometry, CanvasTexture, Points, PointsMaterial } from "three";
 import { COVER, FLAKE_PICTURE, SWAY_SPEED } from "../constants/snowCover.constants";
+import { ease } from "./curves";
+import { softDot } from "./softDot";
 
 let picture: CanvasTexture | null = null;
 
 function flakePicture() {
-  if (picture) return picture;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = FLAKE_PICTURE;
-  const c = canvas.getContext("2d");
-  if (c) {
-    const half = FLAKE_PICTURE / 2;
-    const g = c.createRadialGradient(half, half, 0, half, half, half);
-    g.addColorStop(0, "rgba(255,255,255,1)");
-    g.addColorStop(0.55, "rgba(255,255,255,0.9)");
-    g.addColorStop(1, "rgba(255,255,255,0)");
-    c.fillStyle = g;
-    c.fillRect(0, 0, FLAKE_PICTURE, FLAKE_PICTURE);
-  }
-  picture = new CanvasTexture(canvas);
+  picture ??= softDot(FLAKE_PICTURE, [
+    [0, "rgba(255,255,255,1)"],
+    [0.55, "rgba(255,255,255,0.9)"],
+    [1, "rgba(255,255,255,0)"],
+  ]);
   return picture;
 }
-
-export const eased = (k: number) => (k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k));
 
 export class Cover {
   amount = 1;
@@ -46,7 +37,7 @@ export class Cover {
   }
 
   get white() {
-    return eased(Math.max(0, this.amount));
+    return ease(this.amount);
   }
 }
 

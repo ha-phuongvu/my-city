@@ -1,6 +1,6 @@
 // The fixed values RecordPlayer.tsx works with: the songs it plays and how its turntable moves.
 
-import { bySeason } from "../../utils/season";
+import { Season } from "../season.constants";
 
 export type Song = {
   title: string;
@@ -17,12 +17,13 @@ export enum PlayState {
   Paused = "paused",
 }
 
-// The playlist, played in turn and round again after the last: add a song here, and its file under
-// public/music, and the player plays it (with none it shows that there are no songs). Summer has none
-// yet; winter plays Christmas songs, for testing for now
-export const PLAYLIST: Song[] = bySeason<Song[]>(
-  [],
-  [
+// The playlists, one for each season, each played in turn and round again after the last: add a song
+// here, and its file under public/music, and the player plays it (with none it shows that there are no
+// songs). The player picks the season's from the visitor's date. Summer has none yet; winter plays
+// Christmas songs, for testing for now
+export const PLAYLISTS: Record<Season, Song[]> = {
+  [Season.Summer]: [],
+  [Season.Winter]: [
     {
       title: "All I Want for Christmas Is You",
       by: "Mariah Carey",
@@ -35,7 +36,7 @@ export const PLAYLIST: Song[] = bySeason<Song[]>(
     },
     { title: "Santa Tell Me", by: "Ariana Grande", src: "/music/santa_tell_me.mp3" },
   ],
-);
+};
 
 // The turntable: how fast the record turns playing (degrees a second: 33⅓ turns a minute), how quickly
 // it gets up to speed and slows (s); the tonearm's angles (degrees round its pivot): off the record, on

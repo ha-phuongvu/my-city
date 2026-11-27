@@ -28,6 +28,7 @@ import {
 } from "../../constants/cities/game/Kendama.constants";
 import { kendamaString } from "../../utils/kendamaString";
 import { CROSS } from "../../constants/kendamaString.constants";
+import { smoothstep } from "../../utils/curves";
 
 const toy = ([across, up, behind = 0]: Spot) => new Vector3(across, -behind, up);
 const SPOTS = new CatmullRomCurve3(PATH.map(toy), false, "centripetal");
@@ -35,8 +36,7 @@ const UNTOY = new Matrix4().copy(TOY).invert();
 
 function facing(at: Vector3): Matrix4 {
   const middle = new Vector3(0, 0, CROSS.z).sub(at).normalize();
-  const k = Math.min(1, Math.max(0, (at.distanceTo(toy(REST)) - BALL_TURN.from) / BALL_TURN.over));
-  const s = k * k * (3 - 2 * k);
+  const s = smoothstep(BALL_TURN.from, BALL_TURN.from + BALL_TURN.over, at.distanceTo(toy(REST)));
   const hole = middle
     .clone()
     .multiplyScalar(1 - s)
@@ -50,8 +50,11 @@ function facing(at: Vector3): Matrix4 {
 }
 
 function string(t: number): TubeGeometry {
-  const k = Math.min(1, Math.max(0, Math.min(t, 1 - t) / EASE_IN));
-  const pts = kendamaString(SPOTS.getPoint(t), SPOTS.getTangent(t), k * k * (3 - 2 * k));
+  const pts = kendamaString(
+    SPOTS.getPoint(t),
+    SPOTS.getTangent(t),
+    smoothstep(0, EASE_IN, Math.min(t, 1 - t)),
+  );
   return new TubeGeometry(
     new CatmullRomCurve3(pts, false, "centripetal"),
     24,

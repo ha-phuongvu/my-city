@@ -19,11 +19,6 @@ export function useCycle(length: number, { speed = 1, at }: MotionProps): () => 
   return () => (at === undefined ? clock.current : at * length);
 }
 
-export function ease(t: number): number {
-  const k = Math.min(1, Math.max(0, t));
-  return k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k);
-}
-
 export function through(values: readonly number[], t: number): number {
   const last = values.length - 1;
   const k = Math.min(last, Math.max(0, t * last));
